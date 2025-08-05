@@ -97,5 +97,5 @@ func addClassToParagraphs(node *html.Node) {
 	}
 }
 
-// HTMLModifierPlugin is the plugin symbol that will be looked up
-var HTMLModifierPlugin = &HTMLModifier{}
+// HTMLModifierPlugin is the plugin instance that will be looked up
+var HTMLModifierPlugin = HTMLModifier{}

@@ -123,6 +123,17 @@ go test ./...                  # All tests including integration
 make test-coverage             # With coverage report
 ```
 
+### Docker Testing
+
+To test the complete stack with plugins:
+
+```bash
+cd examples/
+timeout 30 docker compose build && timeout 30 docker compose up
+```
+
+This starts Nginx (backend), Redis (cache), and XRP (proxy) with example plugins.
+
 ### Adding New Features
 
 1. **Start with tests**: Write failing tests first

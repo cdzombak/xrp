@@ -153,7 +153,7 @@ func (m *Manager) validateAndWrapPlugin(symbol interface{}, name string) (xrpPlu
 		return plugin, nil
 	}
 	
-	// If that fails, use reflection to check methods
+	// Use reflection for compatibility
 	symbolValue := reflect.ValueOf(symbol)
 	symbolType := reflect.TypeOf(symbol)
 	
@@ -162,37 +162,59 @@ func (m *Manager) validateAndWrapPlugin(symbol interface{}, name string) (xrpPlu
 		// Dereference once to get the actual plugin instance
 		symbolValue = symbolValue.Elem()
 		symbol = symbolValue.Interface()
+		symbolValue = reflect.ValueOf(symbol)
+		symbolType = reflect.TypeOf(symbol)
 	}
 	
-	// Now check if it's a pointer to struct
-	if symbolValue.Kind() != reflect.Ptr {
-		return nil, fmt.Errorf("symbol '%s' is not a pointer (got %v)", name, symbolValue.Kind())
+	// Check if it's a struct value (new simplified approach)
+	if symbolValue.Kind() == reflect.Struct {
+		slog.Info("Plugin symbol validation", "name", name, "type", symbolType, "kind", symbolValue.Kind())
+		
+		// Check if required methods exist
+		processHTMLMethod := symbolValue.MethodByName("ProcessHTMLTree")
+		processXMLMethod := symbolValue.MethodByName("ProcessXMLTree")
+		
+		if !processHTMLMethod.IsValid() || !processXMLMethod.IsValid() {
+			return nil, fmt.Errorf("symbol '%s' does not implement required methods", name)
+		}
+		
+		// Validate method signatures
+		if err := m.validateMethodSignature(processHTMLMethod, "ProcessHTMLTree"); err != nil {
+			return nil, fmt.Errorf("symbol '%s' ProcessHTMLTree method invalid: %w", name, err)
+		}
+		
+		if err := m.validateMethodSignature(processXMLMethod, "ProcessXMLTree"); err != nil {
+			return nil, fmt.Errorf("symbol '%s' ProcessXMLTree method invalid: %w", name, err)
+		}
+		
+		return &pluginWrapper{symbol: symbol}, nil
 	}
 	
-	if symbolValue.Elem().Kind() != reflect.Struct {
-		return nil, fmt.Errorf("symbol '%s' is not a pointer to struct (got pointer to %v)", name, symbolValue.Elem().Kind())
+	// Check if it's a pointer to struct (legacy approach)  
+	if symbolValue.Kind() == reflect.Ptr && symbolValue.Elem().Kind() == reflect.Struct {
+		slog.Info("Plugin symbol validation", "name", name, "type", symbolType, "kind", symbolValue.Kind())
+		
+		// Check if required methods exist
+		processHTMLMethod := symbolValue.MethodByName("ProcessHTMLTree")
+		processXMLMethod := symbolValue.MethodByName("ProcessXMLTree")
+		
+		if !processHTMLMethod.IsValid() || !processXMLMethod.IsValid() {
+			return nil, fmt.Errorf("symbol '%s' does not implement required methods", name)
+		}
+		
+		// Validate method signatures
+		if err := m.validateMethodSignature(processHTMLMethod, "ProcessHTMLTree"); err != nil {
+			return nil, fmt.Errorf("symbol '%s' ProcessHTMLTree method invalid: %w", name, err)
+		}
+		
+		if err := m.validateMethodSignature(processXMLMethod, "ProcessXMLTree"); err != nil {
+			return nil, fmt.Errorf("symbol '%s' ProcessXMLTree method invalid: %w", name, err)
+		}
+		
+		return &pluginWrapper{symbol: symbol}, nil
 	}
-	
-	slog.Info("Plugin symbol validation", "name", name, "type", symbolType, "kind", symbolValue.Kind())
-	
-	// Check if required methods exist
-	processHTMLMethod := symbolValue.MethodByName("ProcessHTMLTree")
-	processXMLMethod := symbolValue.MethodByName("ProcessXMLTree")
-	
-	if !processHTMLMethod.IsValid() || !processXMLMethod.IsValid() {
-		return nil, fmt.Errorf("symbol '%s' does not implement required methods", name)
-	}
-	
-	// Validate method signatures
-	if err := m.validateMethodSignature(processHTMLMethod, "ProcessHTMLTree"); err != nil {
-		return nil, fmt.Errorf("symbol '%s' ProcessHTMLTree method invalid: %w", name, err)
-	}
-	
-	if err := m.validateMethodSignature(processXMLMethod, "ProcessXMLTree"); err != nil {
-		return nil, fmt.Errorf("symbol '%s' ProcessXMLTree method invalid: %w", name, err)
-	}
-	
-	return &pluginWrapper{symbol: symbol}, nil
+
+	return nil, fmt.Errorf("symbol '%s' is not a struct or pointer to struct (got %v)", name, symbolValue.Kind())
 }
 
 func (m *Manager) validateMethodSignature(method reflect.Value, methodName string) error {

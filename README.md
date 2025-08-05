@@ -120,8 +120,8 @@ func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.
     return nil
 }
 
-// Export the plugin
-var MyPluginInstance = &MyPlugin{}
+// Export the plugin instance (struct value, not pointer)
+var MyPluginInstance = MyPlugin{}
 ```
 
 Build plugins as shared libraries:

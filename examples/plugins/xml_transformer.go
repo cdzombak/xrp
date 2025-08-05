@@ -60,5 +60,5 @@ func transformTextContent(element *etree.Element) {
 	}
 }
 
-// XMLTransformerPlugin is the plugin symbol that will be looked up
-var XMLTransformerPlugin = &XMLTransformer{}
+// XMLTransformerPlugin is the plugin instance that will be looked up
+var XMLTransformerPlugin = XMLTransformer{}
