@@ -16,16 +16,35 @@ import (
 
 var version string = "<dev>"
 
+// parseLogLevel converts a string log level to slog.Level
+func parseLogLevel(level string) slog.Level {
+	switch level {
+	case "debug":
+		return slog.LevelDebug
+	case "info":
+		return slog.LevelInfo
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		slog.Warn("Invalid log level, defaulting to info", "level", level)
+		return slog.LevelInfo
+	}
+}
+
 func main() {
 	var configFile string
 	var addr string
+	var logLevel string
 
 	flag.StringVar(&configFile, "config", "config.json", "Path to configuration file")
 	flag.StringVar(&addr, "addr", ":8080", "Address to listen on")
+	flag.StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	flag.Parse()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: parseLogLevel(logLevel),
 	}))
 	slog.SetDefault(logger)
 
