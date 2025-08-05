@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"strings"
@@ -47,18 +48,29 @@ func New(redisConfig config.RedisConfig) (*Cache, error) {
 }
 
 func (c *Cache) Get(req *http.Request, cfg *config.Config) *Entry {
-	key := c.generateKey(req)
+	// For cache retrieval, we don't have the response Vary header yet,
+	// so we generate a key without Vary consideration for lookup
+	key := c.generateKey(req, "")
 	
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
 	data, err := c.client.Get(ctx, key).Result()
 	if err != nil {
+		if err == redis.Nil {
+			// Cache miss - this is expected
+			return nil
+		}
+		// Log other Redis errors but don't fail the request
+		slog.Error("Redis get error", "error", err, "key", key)
 		return nil
 	}
 
 	var entry Entry
 	if err := json.Unmarshal([]byte(data), &entry); err != nil {
+		slog.Error("Failed to unmarshal cache entry", "error", err, "key", key)
+		// Delete corrupted cache entry
+		go c.delete(key)
 		return nil
 	}
 
@@ -99,7 +111,9 @@ func (c *Cache) Set(req *http.Request, entry *Entry, cfg *config.Config) error {
 		entry.ETag = etag
 	}
 
-	key := c.generateKey(req)
+	// Use the Vary header from the response to generate the cache key
+	varyHeader := entry.Headers.Get("Vary")
+	key := c.generateKey(req, varyHeader)
 	
 	data, err := json.Marshal(entry)
 	if err != nil {
@@ -134,12 +148,11 @@ func (c *Cache) IsCacheable(resp *http.Response) bool {
 	return true
 }
 
-func (c *Cache) generateKey(req *http.Request) string {
-	vary := req.Header.Get("Vary")
+func (c *Cache) generateKey(req *http.Request, varyHeader string) string {
 	keyParts := []string{req.URL.Path, req.URL.RawQuery}
 
-	if vary != "" {
-		varyHeaders := strings.Split(vary, ",")
+	if varyHeader != "" {
+		varyHeaders := strings.Split(varyHeader, ",")
 		for _, header := range varyHeaders {
 			header = strings.TrimSpace(header)
 			if value := req.Header.Get(header); value != "" {

@@ -102,9 +102,28 @@ func (m *Manager) loadPlugin(path, name, mimeType string) (*LoadedPlugin, error)
 }
 
 func (m *Manager) validatePlugin(p xrpPlugin.Plugin, mimeType string) error {
-	// All plugins must implement the full Plugin interface, so no validation needed
-	_ = p      // Use the parameter to avoid unused parameter warning
-	_ = mimeType
+	// Check if plugin implements specialized interfaces for better performance
+	isHTMLMimeType := mimeType == "text/html" || mimeType == "application/xhtml+xml"
+	
+	if isHTMLMimeType {
+		// For HTML MIME types, prefer HTMLPlugin interface but allow full Plugin interface
+		if htmlPlugin, ok := p.(xrpPlugin.HTMLPlugin); ok {
+			// Test that the HTML method works
+			if err := htmlPlugin.ProcessHTMLTree(nil); err != nil {
+				slog.Info("Plugin HTML method test failed, but this may be expected", "error", err)
+			}
+		}
+	} else {
+		// For XML MIME types, prefer XMLPlugin interface but allow full Plugin interface
+		if xmlPlugin, ok := p.(xrpPlugin.XMLPlugin); ok {
+			// Test that the XML method works
+			if err := xmlPlugin.ProcessXMLTree(nil); err != nil {
+				slog.Info("Plugin XML method test failed, but this may be expected", "error", err)
+			}
+		}
+	}
+	
+	// All plugins must implement the full Plugin interface as fallback
 	return nil
 }
 

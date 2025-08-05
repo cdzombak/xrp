@@ -75,6 +75,15 @@ func (p *Proxy) UpdateConfig(cfg *config.Config) error {
 		return fmt.Errorf("invalid backend URL: %w", err)
 	}
 
+	// Update cache client if Redis configuration changed
+	if p.config.Redis != cfg.Redis {
+		newCache, err := cache.New(cfg.Redis)
+		if err != nil {
+			return fmt.Errorf("failed to create new cache client: %w", err)
+		}
+		p.cache = newCache
+	}
+
 	if err := p.plugins.LoadPlugins(cfg); err != nil {
 		return fmt.Errorf("failed to reload plugins: %w", err)
 	}
@@ -121,31 +130,45 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 	// Add cache MISS header for processed responses
 	resp.Header.Set("X-XRP-Cache", "MISS")
 
+	var body []byte
+	var err error
+	
 	if resp.Request.Method == http.MethodGet && p.shouldCache(resp) {
-		body, err := p.processAndCacheResponse(resp, mimeType)
-		if err != nil {
-			slog.Error("Failed to process and cache response", "error", err)
-			return nil
-		}
-		resp.Body = io.NopCloser(bytes.NewReader(body))
-		resp.ContentLength = int64(len(body))
-		resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
+		body, err = p.processAndCacheResponse(resp, mimeType)
 	} else {
-		body, err := p.processResponse(resp, mimeType)
-		if err != nil {
-			slog.Error("Failed to process response", "error", err)
-			return nil
-		}
-		resp.Body = io.NopCloser(bytes.NewReader(body))
-		resp.ContentLength = int64(len(body))
-		resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
+		body, err = p.processResponse(resp, mimeType)
 	}
+	
+	if err != nil {
+		slog.Error("Failed to process response", "error", err)
+		return err
+	}
+	
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	resp.ContentLength = int64(len(body))
+	resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
 
 	return nil
 }
 
 func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, error) {
-	body, err := io.ReadAll(resp.Body)
+	// Check content length before reading if available
+	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
+	if resp.ContentLength > 0 && resp.ContentLength > maxSize {
+		slog.Info("Response too large, skipping processing", "size", resp.ContentLength, "max", maxSize)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body: %w", err)
+		}
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+		return body, nil
+	}
+
+	// Use LimitReader to prevent reading more than maxSize
+	limitedReader := io.LimitReader(resp.Body, maxSize+1) // +1 to detect if limit exceeded
+	body, err := io.ReadAll(limitedReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -153,8 +176,9 @@ func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, e
 		slog.Error("Failed to close response body", "error", err)
 	}
 
-	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
+	// Check if we hit the size limit
 	if int64(len(body)) > maxSize {
+		slog.Info("Response too large, skipping processing", "size", len(body), "max", maxSize)
 		return body, nil
 	}
 

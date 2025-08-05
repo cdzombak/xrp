@@ -44,7 +44,7 @@ func TestGenerateKey(t *testing.T) {
 		URL: &url.URL{Path: "/test", RawQuery: "param=value"},
 		Header: make(http.Header),
 	}
-	baseKey := cache.generateKey(baseReq)
+	baseKey := cache.generateKey(baseReq, "")
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,11 +52,8 @@ func TestGenerateKey(t *testing.T) {
 				URL: &url.URL{Path: tt.path, RawQuery: tt.query},
 				Header: make(http.Header),
 			}
-			if tt.vary != "" {
-				req.Header.Set("Vary", tt.vary)
-			}
-			
-			key := cache.generateKey(req)
+			// Pass the vary header as parameter instead of setting it on request
+			key := cache.generateKey(req, tt.vary)
 			
 			if tt.expected && key == baseKey {
 				t.Error("expected different keys but got same")
