@@ -43,6 +43,11 @@
 - Responses modified by xrp must include a header, "X-XRP-Version", that gives the version of xrp (read from the main.version variable).
 - Responses modified by xrp or served from its cache must include a header, "X-XRP-Cache" that is either the value "HIT" or "MISS", depending on whether the response was served from the cache.
 
+### Error Handling
+
+- Errors that are due to a configuration issue (e.g. trying to run a plugin that only supports XML on an HTML document) should end the program with an error.
+- Errors that are not due to a configuration issue (e.g. an invalid HTML document cannot be parsed or serialized) should be logged, and the original response should be served.
+
 ## Technical/Implementation Requirements
 
 - Implemented in Go using https://pkg.go.dev/net/http/httputil#ReverseProxy
