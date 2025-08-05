@@ -95,31 +95,33 @@ make build
 
 ## Plugin Development
 
-Plugins must implement the `Plugin` interface from `xrp/pkg/plugin`:
+Plugins must implement the `Plugin` interface from `xrp/pkg/xrpplugin`:
 
 ```go
 package main
 
 import (
+    "context"
+    "net/url"
     "golang.org/x/net/html"
     "github.com/beevik/etree"
-    "xrp/pkg/plugin"
+    "xrp/pkg/xrpplugin"
 )
 
 type MyPlugin struct{}
 
-func (p *MyPlugin) ProcessHTMLTree(node *html.Node) error {
+func (p *MyPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
     // Modify HTML tree in place
     return nil
 }
 
-func (p *MyPlugin) ProcessXMLTree(doc *etree.Document) error {
+func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
     // Modify XML document in place  
     return nil
 }
 
-// Export the xrpplugin
-var MyPluginInstance plugin.Plugin = &MyPlugin{}
+// Export the plugin
+var MyPluginInstance = &MyPlugin{}
 ```
 
 Build plugins as shared libraries:
