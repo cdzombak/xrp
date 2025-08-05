@@ -36,12 +36,19 @@ func parseLogLevel(level string) slog.Level {
 func main() {
 	var configFile string
 	var addr string
+	var showVersion bool
 	var logLevel string
 
 	flag.StringVar(&configFile, "config", "config.json", "Path to configuration file")
 	flag.StringVar(&addr, "addr", ":8080", "Address to listen on")
+	flag.BoolVar(&showVersion, "version", false, "Print version and exit")
 	flag.StringVar(&logLevel, "log-level", "info", "Log level (debug, info, warn, error)")
 	flag.Parse()
+
+	if showVersion {
+		println(version)
+		os.Exit(0)
+	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: parseLogLevel(logLevel),
