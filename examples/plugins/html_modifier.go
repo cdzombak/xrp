@@ -10,11 +10,14 @@ import (
 
 	"github.com/beevik/etree"
 
-	"xrp/pkg/plugin"
+	"xrp/pkg/xrpplugin"
 )
 
 // HTMLModifier is an example plugin that modifies HTML content
 type HTMLModifier struct{}
+
+// Compile-time interface check
+var _ xrpplugin.Plugin = (*HTMLModifier)(nil)
 
 // ProcessHTMLTree adds a custom header to HTML pages
 func (h *HTMLModifier) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
@@ -95,4 +98,4 @@ func addClassToParagraphs(node *html.Node) {
 }
 
 // HTMLModifierPlugin is the plugin symbol that will be looked up
-var HTMLModifierPlugin plugin.Plugin = &HTMLModifier{}
+var HTMLModifierPlugin = &HTMLModifier{}

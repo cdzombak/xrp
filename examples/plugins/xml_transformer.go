@@ -10,11 +10,14 @@ import (
 
 	"github.com/beevik/etree"
 
-	"xrp/pkg/plugin"
+	"xrp/pkg/xrpplugin"
 )
 
 // XMLTransformer is an example plugin that modifies XML content
 type XMLTransformer struct{}
+
+// Compile-time interface check
+var _ xrpplugin.Plugin = (*XMLTransformer)(nil)
 
 // ProcessHTMLTree is required by the interface but not used for XML
 func (x *XMLTransformer) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
@@ -58,4 +61,4 @@ func transformTextContent(element *etree.Element) {
 }
 
 // XMLTransformerPlugin is the plugin symbol that will be looked up
-var XMLTransformerPlugin plugin.Plugin = &XMLTransformer{}
+var XMLTransformerPlugin = &XMLTransformer{}
