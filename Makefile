@@ -1,4 +1,4 @@
-.PHONY: build test clean install run example-plugins
+.PHONY: build test clean install run example-plugins docker-up docker-down docker-logs docker-build docker-restart dev-env
 
 # Build the xrp binary
 build:
@@ -34,15 +34,6 @@ example-plugins:
 
 # Development setup
 dev-setup: install example-plugins
-
-# Start Redis for testing (requires Docker)
-redis-start:
-	docker run --name xrp-redis -p 6379:6379 -d redis:alpine
-
-# Stop Redis
-redis-stop:
-	docker stop xrp-redis
-	docker rm xrp-redis
 
 # Lint code
 lint:

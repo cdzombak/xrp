@@ -61,11 +61,35 @@ Create a `config.json` file based on the example:
 
 ### Running
 
-```bash
-# Start Redis (with Docker)
-make redis-start
+#### With Docker Compose (Recommended)
 
-# Run XRP
+```bash
+# Start the complete environment (Nginx + Redis + XRP)
+make dev-env
+
+# Or manually with docker-compose
+docker-compose up -d
+
+# View logs
+make docker-logs
+
+# Stop the environment
+make docker-down
+```
+
+This starts:
+- **Nginx** on port 8081 (backend server)
+- **Redis** on port 6379 (cache)  
+- **XRP** on port 8080 (reverse proxy)
+
+#### Manual Setup
+
+```bash
+# Start Redis separately
+docker run --name xrp-redis -p 6379:6379 -d redis:alpine
+
+# Build and run XRP
+make build
 ./xrp -config config.json -addr :8080
 ```
 
@@ -113,6 +137,18 @@ XRP adds the following headers to responses:
 
 ## Development
 
+### Quick Start
+
+```bash
+# Start complete development environment
+make dev-env
+
+# This is equivalent to:
+docker-compose up -d
+```
+
+### Manual Development
+
 ```bash
 # Install dependencies
 make install
@@ -126,8 +162,27 @@ make test
 # Run with coverage
 make test-coverage
 
-# Start development setup
-make dev-setup
+# Build for local development
+make build
+```
+
+### Docker Commands
+
+```bash
+# Build Docker images
+make docker-build
+
+# Start services
+make docker-up
+
+# Stop services  
+make docker-down
+
+# View logs
+make docker-logs
+
+# Restart just XRP
+make docker-restart
 ```
 
 ## Configuration Reference

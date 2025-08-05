@@ -1,0 +1,31 @@
+{
+  "backend_url": "http://nginx:80",
+  "redis": {
+    "addr": "redis:6379",
+    "password": "",
+    "db": 0
+  },
+  "mime_types": [
+    {
+      "mime_type": "text/html",
+      "plugins": [
+        {
+          "path": "./plugins/html_modifier.so",
+          "name": "HTMLModifierPlugin"
+        }
+      ]
+    },
+    {
+      "mime_type": "application/xml",
+      "plugins": [
+        {
+          "path": "./plugins/xml_modifier.so", 
+          "name": "XMLModifierPlugin"
+        }
+      ]
+    }
+  ],
+  "cookie_denylist": ["session", "auth"],
+  "request_timeout": 30,
+  "max_response_size_mb": 10
+}

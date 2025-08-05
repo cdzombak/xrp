@@ -32,7 +32,7 @@
 - Caching is only performed for successful responses (HTTP 200 OK).
 - Caching is only done for GET requests.
 - Caching is done using the `Cache-Control` and `Expires` headers to determine cacheability.
-- Responses with a `Vary` header are cached separately for each variation..
+- Responses with a `Vary` header are cached separately for each variation.
 - Caching obeys HTTP caching headers, including `Cache-Control`, `Expires`, and `ETag`.
 - Cached responses are stored with a key that includes the URL path and query parameters.
 - Responses including a Set-Cookie header are not cached.

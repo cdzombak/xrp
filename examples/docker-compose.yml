@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Nginx backend serving default welcome page
+  nginx:
+    image: nginx:alpine
+    container_name: xrp-nginx
+    ports:
+      - "8081:80"
+    networks:
+      - xrp-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: xrp-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - xrp-network
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # XRP reverse proxy
+  xrp:
+    build: ..
+    container_name: xrp-proxy
+    ports:
+      - "8080:8080"
+    networks:
+      - xrp-network
+    depends_on:
+      nginx:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      - LOG_LEVEL=info
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+networks:
+  xrp-network:
+    driver: bridge
+
+volumes:
+  redis-data:
