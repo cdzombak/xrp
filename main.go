@@ -14,7 +14,7 @@ import (
 	"xrp/internal/proxy"
 )
 
-var version string
+var version string = "<dev>"
 
 func main() {
 	var configFile string
