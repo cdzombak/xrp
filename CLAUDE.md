@@ -1,6 +1,4 @@
-# CLAUDE.md - Development Guidelines for XRP
-
-This file contains important guidelines and context for AI agents working on the XRP codebase.
+# CLAUDE.md - XRP Development Guide
 
 ## Project Overview
 
@@ -8,53 +6,8 @@ XRP is an HTML/XML-aware reverse proxy built in Go that supports:
 - Plugin-based content modification for HTML/XML responses
 - Redis-based caching with HTTP compliance
 - Configuration hot-reloading via SIGHUP
-- Response header injection (version and cache status)
 
-## Architecture & Design Principles
-
-### Core Components
-
-1. **Main Package** (`main.go`): Entry point, signal handling, server lifecycle
-2. **Proxy Package** (`internal/proxy/`): Core reverse proxy logic, response modification
-3. **Config Package** (`internal/config/`): Configuration parsing and validation
-4. **Cache Package** (`internal/cache/`): Redis caching with HTTP compliance
-5. **Plugins Package** (`internal/plugins/`): Plugin loading and management
-6. **Plugin Interface** (`pkg/plugin/`): Shared interface for external plugins
-
-### Key Design Decisions
-
-- **Streaming for non-HTML/XML**: Non-target MIME types are streamed directly without buffering
-- **In-place modification**: Plugins modify trees in place to avoid copying large documents
-- **HTTP compliance**: Caching respects standard HTTP headers and behaviors
-- **Type safety**: Strong typing with interface-based plugin system
-- **Error handling**: Graceful degradation - processing errors don't crash the proxy
-
-## Testing Strategy
-
-### Current Test Coverage
-
-- **Config**: Full validation, loading, and schema compliance tests
-- **Cache**: Redis integration, TTL calculation, header parsing, key generation
-- **Plugins**: Plugin loading, validation, interface compliance
-- **Proxy**: Basic functionality, header injection, utility functions
-
-### Testing Guidelines
-
-1. **Use `-short` flag**: Skip integration tests during development
-2. **Mock external dependencies**: Redis, plugin loading for unit tests
-3. **Test error conditions**: Invalid configs, plugin failures, cache misses
-4. **Interface testing**: Verify plugin interface compliance
-
-### Test File Organization
-
-- Simple unit tests in `*_test.go` files
-- Complex integration tests can be split into separate files
-- Use table-driven tests for multiple scenarios
-- Mock heavy dependencies (Redis, file system, plugins)
-
-## Code Organization
-
-### Package Structure
+## Architecture
 
 ```
 xrp/
@@ -64,161 +17,93 @@ xrp/
 │   ├── cache/                  # Redis caching
 │   ├── plugins/                # Plugin management
 │   └── proxy/                  # Core proxy logic
-├── pkg/                        # Public packages
-│   └── plugin/                 # Plugin interface
-└── examples/                   # Example plugins
+├── pkg/xrpplugin/              # Plugin interface (public)
+└── examples/                   # Example plugins and Docker setup
 ```
 
-### Import Guidelines
+## Building & Testing
 
-- Use `internal/` packages for implementation details
-- Keep `pkg/plugin` minimal and dependency-free for external plugin authors
-- Group imports: stdlib, external, internal
-
-## Critical Implementation Details
-
-### Plugin System
-
-- Plugins are Go shared libraries (`.so` files)
-- Must export a symbol matching the configured name
-- Interface validation happens at load time
-- Plugin failures should be graceful (log error, continue without plugin)
-
-### Caching Logic
-
-- Only cache GET requests with 200 status
-- Respect `Cache-Control`, `Expires`, `ETag` headers
-- Generate keys from URL + query + Vary headers
-- Cookie denylist prevents caching certain requests
-- TTL calculation prefers explicit headers over defaults
-
-### Response Headers
-
-- `X-XRP-Version`: Always added to responses going through XRP
-- `X-XRP-Cache`: "HIT" for cached responses, "MISS" for fresh responses
-- Version comes from `main.version` variable (set at build time)
-
-### Configuration Hot-Reload
-
-- SIGHUP triggers config reload
-- New plugins are loaded, old ones remain until replaced
-- Invalid configs are rejected, keeping current configuration
-- Backend URL changes require new reverse proxy instance
-
-## Development Workflow
-
-### Building
-
+### Quick Build
 ```bash
 go build .                      # Main binary
-make build                      # Alternative
 make example-plugins           # Build example plugins
 ```
 
 ### Testing
-
 ```bash
 go test ./internal/... -short  # Fast unit tests
 go test ./...                  # All tests including integration
-make test-coverage             # With coverage report
 ```
 
-### Docker Testing
-
-To test the complete stack with plugins:
-
+### Docker Testing (Complete Stack)
 ```bash
 cd examples/
 timeout 30 docker compose build && timeout 30 docker compose up
 ```
-
 This starts Nginx (backend), Redis (cache), and XRP (proxy) with example plugins.
 
-### Adding New Features
+## Plugin Development
 
-1. **Start with tests**: Write failing tests first
-2. **Update SPEC.md**: Document new requirements
-3. **Implement incrementally**: Small, focused commits
-4. **Update documentation**: README.md and code comments
-5. **Test integration**: End-to-end testing with real plugins/Redis
+### Plugin Structure
+Plugins export struct values (not pointers) to avoid Go plugin system complexities:
 
-## Common Pitfalls & Solutions
+```go
+package main
 
-### Plugin Development
+import (
+    "context"
+    "net/url"
+    "golang.org/x/net/html"
+    "github.com/beevik/etree"
+    "xrp/pkg/xrpplugin"
+)
 
-- **Issue**: Type assertion failures in plugin loading
-- **Solution**: Use interface{} and type assertion with ok checks
-- **Issue**: Plugin panics crashing the proxy
-- **Solution**: Recover from panics in plugin execution
+type MyPlugin struct{}
 
-### Testing Challenges
+func (p *MyPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
+    // Modify HTML tree in place
+    return nil
+}
 
-- **Issue**: Redis dependency in tests
-- **Solution**: Use build tags or skip integration tests in CI
-- **Issue**: Complex mocking for interfaces
-- **Solution**: Create simple test implementations, avoid over-mocking
+func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
+    // Modify XML document in place
+    return nil
+}
 
-### Configuration Validation
+// Export as struct value (not pointer)
+var MyPluginInstance = MyPlugin{}
+```
 
-- **Issue**: Runtime config errors
-- **Solution**: Validate at load time, provide clear error messages
-- **Issue**: MIME type restrictions
-- **Solution**: Maintain whitelist of supported HTML/XML types
+### Building Plugins
+```bash
+go build -buildmode=plugin -o my_plugin.so my_plugin.go
+```
 
-## Performance Considerations
+## Key Implementation Details
 
-### Memory Usage
+### Plugin System
+- Plugins are Go shared libraries (`.so` files)
+- Export struct values to avoid pointer-to-pointer issues
+- Interface validation happens at load time using reflection fallback
+- Plugin failures are graceful (log error, continue without plugin)
 
-- Stream non-target content (don't buffer large files)
-- Limit response size processing (`max_response_size_mb`)
-- Cache eviction based on Redis TTL settings
+### Caching Logic
+- Only cache GET requests with 200 status
+- Respect `Cache-Control`, `Expires`, `ETag` headers
+- Generate keys from URL + query + Vary headers
+- Cookie denylist prevents caching certain requests
 
-### Concurrency
+### Configuration Hot-Reload
+- SIGHUP triggers config reload
+- New plugins are loaded, old ones remain until replaced
+- Invalid configs are rejected, keeping current configuration
 
-- Read-write mutex for configuration updates
-- Plugin instances are shared across requests (must be thread-safe)
-- Redis connection pooling via go-redis client
-
-## Security Considerations
-
-- **Plugin security**: Plugins run with full process privileges
-- **Cache poisoning**: Validate cache keys and content
-- **Header injection**: Sanitize configuration-provided values
-- **DoS protection**: Response size limits, request timeouts
+## Error Handling
+- **Fail gracefully**: Plugin errors don't crash the proxy
+- **Validate early**: Catch configuration errors at startup
+- **Use structured logging**: `slog` with context throughout
 
 ## Dependencies
-
-### Core Dependencies
-
 - `golang.org/x/net/html`: HTML parsing
 - `github.com/beevik/etree`: XML processing
 - `github.com/redis/go-redis/v9`: Redis client
-
-### Development Dependencies
-
-- Standard Go testing framework
-- No external testing frameworks to keep it simple
-
-## Future Extension Points
-
-- Additional MIME type support (with careful consideration)
-- Plugin hot-reloading without process restart
-- Metrics and monitoring integration
-- Multiple backend support (load balancing)
-- Custom cache backends beyond Redis
-
-## Error Handling Philosophy
-
-- **Fail gracefully**: Plugin errors shouldn't crash the proxy
-- **Log comprehensively**: Use structured logging with context
-- **Degrade functionality**: Continue operating with reduced capability
-- **Validate early**: Catch configuration errors at startup
-
-## Debugging Tips
-
-- Use `slog` for structured logging throughout
-- Add request tracing with unique IDs
-- Monitor Redis operations for cache debugging
-- Plugin debugging requires separate compilation and testing
-
-Remember: The goal is reliability and performance for high-traffic reverse proxy scenarios while maintaining extensibility through the plugin system.
