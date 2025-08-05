@@ -12,7 +12,7 @@
 
 ### Request Handling
 
-- Files that are not HTML/XML should streamed directly from backend to the client, not buffered in memory.
+- Files that are not HTML/XML should be streamed directly from backend to the client, not buffered in memory.
 - Incoming request bodies are not modified. They are streamed to the backend, not buffered in memory.
 
 ### Plugins
@@ -38,6 +38,11 @@
 - Responses including a Set-Cookie header are not cached.
 - A cookie name denylist can be specified in the configuration JSON file. Responses to requests that include cookies matching the denylist are not cached.
 
+### Response Headers
+
+- Responses modified by xrp must include a header, "X-XRP-Version", that gives the version of xrp (read from the main.version variable).
+- Responses modified by xrp or served from its cache must include a header, "X-XRP-Cache" that is either the value "HIT" or "MISS", depending on whether the response was served from the cache.
+
 ## Technical/Implementation Requirements
 
 - Implemented in Go using https://pkg.go.dev/net/http/httputil#ReverseProxy
@@ -47,4 +52,4 @@
 - HTML trees are handled using the Go standard library's `html` package.
 - Logging is done using the Golang standard library's `slog` package.
 - The code follows best practices for idiomatic Go. The code is readable and maintainable.
-- The implementation must have good test coverage with unit tests!
+- The implementation must have good test coverage with unit tests! This is especially true for the caching logic and plugin interface.

@@ -1,0 +1,34 @@
+{
+  "backend_url": "http://localhost:8081",
+  "redis": {
+    "addr": "localhost:6379",
+    "password": "",
+    "db": 0
+  },
+  "mime_types": [
+    {
+      "mime_type": "text/html",
+      "plugins": [
+        {
+          "path": "./plugins/html_modifier.so",
+          "name": "HTMLModifier"
+        }
+      ]
+    },
+    {
+      "mime_type": "application/xml",
+      "plugins": [
+        {
+          "path": "./plugins/xml_transformer.so",
+          "name": "XMLTransformer"
+        }
+      ]
+    }
+  ],
+  "cookie_denylist": [
+    "session",
+    "auth_token"
+  ],
+  "request_timeout": 30,
+  "max_response_size_mb": 10
+}

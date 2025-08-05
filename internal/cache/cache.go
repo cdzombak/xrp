@@ -1,0 +1,226 @@
+package cache
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+
+	"xrp/internal/config"
+)
+
+type Entry struct {
+	Body       []byte      `json:"body"`
+	Headers    http.Header `json:"headers"`
+	StatusCode int         `json:"status_code"`
+	Timestamp  time.Time   `json:"timestamp"`
+	ETag       string      `json:"etag,omitempty"`
+	Expires    *time.Time  `json:"expires,omitempty"`
+	MaxAge     *int        `json:"max_age,omitempty"`
+}
+
+type Cache struct {
+	client *redis.Client
+}
+
+func New(redisConfig config.RedisConfig) (*Cache, error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     redisConfig.Addr,
+		Password: redisConfig.Password,
+		DB:       redisConfig.DB,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	return &Cache{client: client}, nil
+}
+
+func (c *Cache) Get(req *http.Request, cfg *config.Config) *Entry {
+	key := c.generateKey(req)
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	data, err := c.client.Get(ctx, key).Result()
+	if err != nil {
+		return nil
+	}
+
+	var entry Entry
+	if err := json.Unmarshal([]byte(data), &entry); err != nil {
+		return nil
+	}
+
+	if c.isExpired(&entry) {
+		go c.delete(key)
+		return nil
+	}
+
+	if etag := req.Header.Get("If-None-Match"); etag != "" && etag == entry.ETag {
+		return &Entry{
+			StatusCode: http.StatusNotModified,
+			Headers:    make(http.Header),
+		}
+	}
+
+	return &entry
+}
+
+func (c *Cache) Set(req *http.Request, entry *Entry, cfg *config.Config) error {
+	if !c.IsCacheable(&http.Response{
+		StatusCode: entry.StatusCode,
+		Header:     entry.Headers,
+		Request:    req,
+	}) {
+		return nil
+	}
+
+	// Parse cache control headers to populate entry fields
+	if cacheControl := entry.Headers.Get("Cache-Control"); cacheControl != "" {
+		entry.MaxAge = parseMaxAge(cacheControl)
+	}
+	
+	if expiresHeader := entry.Headers.Get("Expires"); expiresHeader != "" {
+		entry.Expires = parseExpires(expiresHeader)
+	}
+	
+	if etag := entry.Headers.Get("ETag"); etag != "" {
+		entry.ETag = etag
+	}
+
+	key := c.generateKey(req)
+	
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cache entry: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	ttl := c.calculateTTL(entry)
+	return c.client.Set(ctx, key, data, ttl).Err()
+}
+
+func (c *Cache) IsCacheable(resp *http.Response) bool {
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	if resp.Request.Method != http.MethodGet {
+		return false
+	}
+
+	cacheControl := resp.Header.Get("Cache-Control")
+	if strings.Contains(cacheControl, "no-cache") || strings.Contains(cacheControl, "no-store") || strings.Contains(cacheControl, "private") {
+		return false
+	}
+
+	if resp.Header.Get("Set-Cookie") != "" {
+		return false
+	}
+
+	return true
+}
+
+func (c *Cache) generateKey(req *http.Request) string {
+	vary := req.Header.Get("Vary")
+	keyParts := []string{req.URL.Path, req.URL.RawQuery}
+
+	if vary != "" {
+		varyHeaders := strings.Split(vary, ",")
+		for _, header := range varyHeaders {
+			header = strings.TrimSpace(header)
+			if value := req.Header.Get(header); value != "" {
+				keyParts = append(keyParts, header+":"+value)
+			}
+		}
+	}
+
+	keyString := strings.Join(keyParts, "|")
+	hash := sha256.Sum256([]byte(keyString))
+	return fmt.Sprintf("xrp:cache:%x", hash)
+}
+
+func (c *Cache) isExpired(entry *Entry) bool {
+	now := time.Now()
+
+	if entry.Expires != nil && now.After(*entry.Expires) {
+		return true
+	}
+
+	if entry.MaxAge != nil {
+		maxAgeExpiry := entry.Timestamp.Add(time.Duration(*entry.MaxAge) * time.Second)
+		if now.After(maxAgeExpiry) {
+			return true
+		}
+	}
+
+	defaultTTL := 1 * time.Hour
+	if now.After(entry.Timestamp.Add(defaultTTL)) {
+		return true
+	}
+
+	return false
+}
+
+func (c *Cache) calculateTTL(entry *Entry) time.Duration {
+	now := time.Now()
+
+	if entry.Expires != nil {
+		if ttl := entry.Expires.Sub(now); ttl > 0 {
+			return ttl
+		}
+	}
+
+	if entry.MaxAge != nil {
+		maxAgeTTL := time.Duration(*entry.MaxAge) * time.Second
+		elapsed := now.Sub(entry.Timestamp)
+		if remaining := maxAgeTTL - elapsed; remaining > 0 {
+			return remaining
+		}
+	}
+
+	return 1 * time.Hour
+}
+
+func (c *Cache) delete(key string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	c.client.Del(ctx, key)
+}
+
+func parseMaxAge(cacheControl string) *int {
+	parts := strings.Split(cacheControl, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(part, "max-age=") {
+			if value, err := strconv.Atoi(part[8:]); err == nil {
+				return &value
+			}
+		}
+	}
+	return nil
+}
+
+func parseExpires(expiresHeader string) *time.Time {
+	if expiresHeader == "" {
+		return nil
+	}
+	
+	if t, err := http.ParseTime(expiresHeader); err == nil {
+		return &t
+	}
+	return nil
+}

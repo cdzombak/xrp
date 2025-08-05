@@ -1,0 +1,3 @@
+- verify behavior on parsing or other errors processing a document
+- linter
+- code review
