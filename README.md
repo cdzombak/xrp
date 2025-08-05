@@ -118,7 +118,7 @@ func (p *MyPlugin) ProcessXMLTree(doc *etree.Document) error {
     return nil
 }
 
-// Export the plugin
+// Export the xrpplugin
 var MyPluginInstance plugin.Plugin = &MyPlugin{}
 ```
 

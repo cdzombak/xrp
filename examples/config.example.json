@@ -1,7 +1,7 @@
 {
   "backend_url": "http://localhost:8081",
   "redis": {
-    "addr": "localhost:6379",
+    "addr": "localhost:6378",
     "password": "",
     "db": 0
   },

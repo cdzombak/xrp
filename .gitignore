@@ -71,7 +71,7 @@ go.work.sum
 # CMake
 cmake-build-*/
 
-# Mongo Explorer plugin
+# Mongo Explorer xrpplugin
 .idea/**/mongoSettings.xml
 
 # File-based project format
@@ -80,19 +80,19 @@ cmake-build-*/
 # IntelliJ
 out/
 
-# mpeltonen/sbt-idea plugin
+# mpeltonen/sbt-idea xrpplugin
 .idea_modules/
 
-# JIRA plugin
+# JIRA xrpplugin
 atlassian-ide-plugin.xml
 
-# Cursive Clojure plugin
+# Cursive Clojure xrpplugin
 .idea/replstate.xml
 
-# SonarLint plugin
+# SonarLint xrpplugin
 .idea/sonarlint/
 
-# Crashlytics plugin (for Android Studio and IntelliJ)
+# Crashlytics xrpplugin (for Android Studio and IntelliJ)
 com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
