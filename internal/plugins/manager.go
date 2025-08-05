@@ -1,8 +1,10 @@
 package plugins
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"plugin"
 	"sync"
 
@@ -20,18 +22,18 @@ type LoadedPlugin struct {
 	name   string
 }
 
-func (lp *LoadedPlugin) ProcessHTMLTree(node *html.Node) error {
+func (lp *LoadedPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
 	if htmlPlugin, ok := lp.plugin.(xrpPlugin.HTMLPlugin); ok {
-		return htmlPlugin.ProcessHTMLTree(node)
+		return htmlPlugin.ProcessHTMLTree(ctx, url, node)
 	}
-	return lp.plugin.ProcessHTMLTree(node)
+	return lp.plugin.ProcessHTMLTree(ctx, url, node)
 }
 
-func (lp *LoadedPlugin) ProcessXMLTree(doc *etree.Document) error {
+func (lp *LoadedPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
 	if xmlPlugin, ok := lp.plugin.(xrpPlugin.XMLPlugin); ok {
-		return xmlPlugin.ProcessXMLTree(doc)
+		return xmlPlugin.ProcessXMLTree(ctx, url, doc)
 	}
-	return lp.plugin.ProcessXMLTree(doc)
+	return lp.plugin.ProcessXMLTree(ctx, url, doc)
 }
 
 type Manager struct {
@@ -108,16 +110,16 @@ func (m *Manager) validatePlugin(p xrpPlugin.Plugin, mimeType string) error {
 	if isHTMLMimeType {
 		// For HTML MIME types, prefer HTMLPlugin interface but allow full Plugin interface
 		if htmlPlugin, ok := p.(xrpPlugin.HTMLPlugin); ok {
-			// Test that the HTML method works
-			if err := htmlPlugin.ProcessHTMLTree(nil); err != nil {
+			// Test that the HTML method works (we pass nil values for validation)
+			if err := htmlPlugin.ProcessHTMLTree(context.Background(), nil, nil); err != nil {
 				slog.Info("Plugin HTML method test failed, but this may be expected", "error", err)
 			}
 		}
 	} else {
 		// For XML MIME types, prefer XMLPlugin interface but allow full Plugin interface
 		if xmlPlugin, ok := p.(xrpPlugin.XMLPlugin); ok {
-			// Test that the XML method works
-			if err := xmlPlugin.ProcessXMLTree(nil); err != nil {
+			// Test that the XML method works (we pass nil values for validation)
+			if err := xmlPlugin.ProcessXMLTree(context.Background(), nil, nil); err != nil {
 				slog.Info("Plugin XML method test failed, but this may be expected", "error", err)
 			}
 		}

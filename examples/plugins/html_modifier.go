@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -15,7 +17,7 @@ import (
 type HTMLModifier struct{}
 
 // ProcessHTMLTree adds a custom header to HTML pages
-func (h *HTMLModifier) ProcessHTMLTree(node *html.Node) error {
+func (h *HTMLModifier) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
 	// Find the head element
 	head := findElement(node, "head")
 	if head == nil {
@@ -42,7 +44,7 @@ func (h *HTMLModifier) ProcessHTMLTree(node *html.Node) error {
 }
 
 // ProcessXMLTree is required by the interface but not used for HTML
-func (h *HTMLModifier) ProcessXMLTree(doc *etree.Document) error {
+func (h *HTMLModifier) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
 	return fmt.Errorf("HTMLModifier does not process XML")
 }
 

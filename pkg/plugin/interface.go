@@ -1,6 +1,9 @@
 package plugin
 
 import (
+	"context"
+	"net/url"
+
 	"golang.org/x/net/html"
 
 	"github.com/beevik/etree"
@@ -12,19 +15,19 @@ import (
 type Plugin interface {
 	// ProcessHTMLTree modifies an HTML tree in place.
 	// It should return an error if processing fails.
-	ProcessHTMLTree(node *html.Node) error
+	ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error
 
 	// ProcessXMLTree modifies an XML tree in place.
 	// It should return an error if processing fails.
-	ProcessXMLTree(doc *etree.Document) error
+	ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error
 }
 
 // HTMLPlugin is a convenience interface for plugins that only handle HTML.
 type HTMLPlugin interface {
-	ProcessHTMLTree(node *html.Node) error
+	ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error
 }
 
 // XMLPlugin is a convenience interface for plugins that only handle XML.
 type XMLPlugin interface {
-	ProcessXMLTree(doc *etree.Document) error
+	ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error
 }

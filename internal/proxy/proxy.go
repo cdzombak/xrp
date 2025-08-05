@@ -182,15 +182,15 @@ func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, e
 		return body, nil
 	}
 
-	plugins := p.config.GetPluginsForMimeType(mimeType)
-	if len(plugins) == 0 {
+	pluginConfigs := p.config.GetPluginsForMimeType(mimeType)
+	if len(pluginConfigs) == 0 {
 		return body, nil
 	}
 
 	if isHTMLMimeType(mimeType) {
-		return p.processHTMLResponse(body, plugins)
+		return p.processHTMLResponse(resp.Request, body, pluginConfigs)
 	} else {
-		return p.processXMLResponse(body, plugins)
+		return p.processXMLResponse(resp.Request, body, pluginConfigs)
 	}
 }
 
@@ -214,11 +214,14 @@ func (p *Proxy) processAndCacheResponse(resp *http.Response, mimeType string) ([
 	return processedBody, nil
 }
 
-func (p *Proxy) processHTMLResponse(body []byte, pluginConfigs []config.PluginConfig) ([]byte, error) {
+func (p *Proxy) processHTMLResponse(req *http.Request, body []byte, pluginConfigs []config.PluginConfig) ([]byte, error) {
 	doc, err := html.Parse(bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse HTML: %w", err)
 	}
+
+	ctx := req.Context()
+	requestURL := req.URL
 
 	for _, pluginConfig := range pluginConfigs {
 		plugin := p.plugins.GetPlugin(pluginConfig.Path, pluginConfig.Name)
@@ -226,7 +229,7 @@ func (p *Proxy) processHTMLResponse(body []byte, pluginConfigs []config.PluginCo
 			return nil, fmt.Errorf("plugin not found: %s/%s", pluginConfig.Path, pluginConfig.Name)
 		}
 
-		if err := plugin.ProcessHTMLTree(doc); err != nil {
+		if err := plugin.ProcessHTMLTree(ctx, requestURL, doc); err != nil {
 			return nil, fmt.Errorf("plugin %s failed: %w", pluginConfig.Name, err)
 		}
 	}
@@ -239,11 +242,14 @@ func (p *Proxy) processHTMLResponse(body []byte, pluginConfigs []config.PluginCo
 	return buf.Bytes(), nil
 }
 
-func (p *Proxy) processXMLResponse(body []byte, pluginConfigs []config.PluginConfig) ([]byte, error) {
+func (p *Proxy) processXMLResponse(req *http.Request, body []byte, pluginConfigs []config.PluginConfig) ([]byte, error) {
 	doc := etree.NewDocument()
 	if err := doc.ReadFromBytes(body); err != nil {
 		return nil, fmt.Errorf("failed to parse XML: %w", err)
 	}
+
+	ctx := req.Context()
+	requestURL := req.URL
 
 	for _, pluginConfig := range pluginConfigs {
 		plugin := p.plugins.GetPlugin(pluginConfig.Path, pluginConfig.Name)
@@ -251,7 +257,7 @@ func (p *Proxy) processXMLResponse(body []byte, pluginConfigs []config.PluginCon
 			return nil, fmt.Errorf("plugin not found: %s/%s", pluginConfig.Path, pluginConfig.Name)
 		}
 
-		if err := plugin.ProcessXMLTree(doc); err != nil {
+		if err := plugin.ProcessXMLTree(ctx, requestURL, doc); err != nil {
 			return nil, fmt.Errorf("plugin %s failed: %w", pluginConfig.Name, err)
 		}
 	}

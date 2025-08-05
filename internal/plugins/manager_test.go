@@ -1,6 +1,8 @@
 package plugins
 
 import (
+	"context"
+	"net/url"
 	"testing"
 
 	"golang.org/x/net/html"
@@ -13,31 +15,31 @@ import (
 // Mock plugin implementations for testing
 type MockHTMLPlugin struct{}
 
-func (m *MockHTMLPlugin) ProcessHTMLTree(node *html.Node) error {
+func (m *MockHTMLPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
 	return nil
 }
 
-func (m *MockHTMLPlugin) ProcessXMLTree(doc *etree.Document) error {
+func (m *MockHTMLPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
 	return nil // Not implemented for HTML-only plugin
 }
 
 type MockXMLPlugin struct{}
 
-func (m *MockXMLPlugin) ProcessHTMLTree(node *html.Node) error {
+func (m *MockXMLPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
 	return nil // Not implemented for XML-only plugin
 }
 
-func (m *MockXMLPlugin) ProcessXMLTree(doc *etree.Document) error {
+func (m *MockXMLPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
 	return nil
 }
 
 type MockFullPlugin struct{}
 
-func (m *MockFullPlugin) ProcessHTMLTree(node *html.Node) error {
+func (m *MockFullPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
 	return nil
 }
 
-func (m *MockFullPlugin) ProcessXMLTree(doc *etree.Document) error {
+func (m *MockFullPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
 	return nil
 }
 
@@ -174,7 +176,7 @@ func TestLoadedPluginMethods(t *testing.T) {
 			}
 
 			if tt.testHTML {
-				err := loadedPlugin.ProcessHTMLTree(nil)
+				err := loadedPlugin.ProcessHTMLTree(context.Background(), nil, nil)
 				if tt.expectError && err == nil {
 					t.Error("expected error but got none")
 				}
@@ -184,7 +186,7 @@ func TestLoadedPluginMethods(t *testing.T) {
 			}
 
 			if tt.testXML {
-				err := loadedPlugin.ProcessXMLTree(nil)
+				err := loadedPlugin.ProcessXMLTree(context.Background(), nil, nil)
 				if tt.expectError && err == nil {
 					t.Error("expected error but got none")
 				}
@@ -193,5 +195,61 @@ func TestLoadedPluginMethods(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// Mock plugin that captures the URL for testing
+type URLCapturingPlugin struct {
+	CapturedURL *url.URL
+}
+
+func (u *URLCapturingPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
+	u.CapturedURL = url
+	return nil
+}
+
+func (u *URLCapturingPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
+	u.CapturedURL = url
+	return nil
+}
+
+func TestPluginReceivesURL(t *testing.T) {
+	testURL := &url.URL{
+		Scheme: "https",
+		Host:   "example.com",
+		Path:   "/test/path",
+	}
+
+	urlCapturingPlugin := &URLCapturingPlugin{}
+	loadedPlugin := &LoadedPlugin{
+		plugin: urlCapturingPlugin,
+		name:   "URLTestPlugin",
+	}
+
+	// Test HTML processing
+	err := loadedPlugin.ProcessHTMLTree(context.Background(), testURL, nil)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if urlCapturingPlugin.CapturedURL == nil {
+		t.Error("URL was not passed to HTML plugin")
+	} else if urlCapturingPlugin.CapturedURL.String() != testURL.String() {
+		t.Errorf("expected URL %s, got %s", testURL.String(), urlCapturingPlugin.CapturedURL.String())
+	}
+
+	// Reset for XML test
+	urlCapturingPlugin.CapturedURL = nil
+
+	// Test XML processing
+	err = loadedPlugin.ProcessXMLTree(context.Background(), testURL, nil)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+
+	if urlCapturingPlugin.CapturedURL == nil {
+		t.Error("URL was not passed to XML plugin")
+	} else if urlCapturingPlugin.CapturedURL.String() != testURL.String() {
+		t.Errorf("expected URL %s, got %s", testURL.String(), urlCapturingPlugin.CapturedURL.String())
 	}
 }

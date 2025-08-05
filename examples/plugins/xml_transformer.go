@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"time"
 
 	"golang.org/x/net/html"
@@ -15,12 +17,12 @@ import (
 type XMLTransformer struct{}
 
 // ProcessHTMLTree is required by the interface but not used for XML
-func (x *XMLTransformer) ProcessHTMLTree(node *html.Node) error {
+func (x *XMLTransformer) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
 	return fmt.Errorf("XMLTransformer does not process HTML")
 }
 
 // ProcessXMLTree adds metadata and transforms XML content
-func (x *XMLTransformer) ProcessXMLTree(doc *etree.Document) error {
+func (x *XMLTransformer) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
 	root := doc.Root()
 	if root == nil {
 		return fmt.Errorf("no root element found in XML document")
