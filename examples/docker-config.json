@@ -19,8 +19,8 @@
       "mime_type": "application/xml",
       "plugins": [
         {
-          "path": "./plugins/xml_modifier.so", 
-          "name": "XMLModifierPlugin"
+          "path": "./plugins/xml_transformer.so", 
+          "name": "XMLTransformerPlugin"
         }
       ]
     }

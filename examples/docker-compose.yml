@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # Nginx backend serving default welcome page
   nginx:
@@ -20,7 +18,7 @@ services:
     image: redis:7-alpine
     container_name: xrp-redis
     ports:
-      - "6379:6379"
+      - "6378:6379"
     networks:
       - xrp-network
     command: redis-server --appendonly yes
@@ -34,7 +32,9 @@ services:
 
   # XRP reverse proxy
   xrp:
-    build: ..
+    build:
+      context: ..
+      dockerfile: examples/Dockerfile
     container_name: xrp-proxy
     ports:
       - "8080:8080"
