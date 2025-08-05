@@ -1,2 +1,1 @@
-- linter
 - code review

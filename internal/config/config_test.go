@@ -96,12 +96,12 @@ func TestLoad(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer os.Remove(tempFile.Name())
+			defer func() { _ = os.Remove(tempFile.Name()) }()
 
 			if _, err := tempFile.WriteString(tt.configJSON); err != nil {
 				t.Fatal(err)
 			}
-			tempFile.Close()
+			_ = tempFile.Close()
 
 			config, err := Load(tempFile.Name())
 			if tt.expectError {

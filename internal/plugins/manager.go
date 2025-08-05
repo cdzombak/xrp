@@ -24,20 +24,14 @@ func (lp *LoadedPlugin) ProcessHTMLTree(node *html.Node) error {
 	if htmlPlugin, ok := lp.plugin.(xrpPlugin.HTMLPlugin); ok {
 		return htmlPlugin.ProcessHTMLTree(node)
 	}
-	if fullPlugin, ok := lp.plugin.(xrpPlugin.Plugin); ok {
-		return fullPlugin.ProcessHTMLTree(node)
-	}
-	return fmt.Errorf("plugin %s does not implement HTML processing", lp.name)
+	return lp.plugin.ProcessHTMLTree(node)
 }
 
 func (lp *LoadedPlugin) ProcessXMLTree(doc *etree.Document) error {
 	if xmlPlugin, ok := lp.plugin.(xrpPlugin.XMLPlugin); ok {
 		return xmlPlugin.ProcessXMLTree(doc)
 	}
-	if fullPlugin, ok := lp.plugin.(xrpPlugin.Plugin); ok {
-		return fullPlugin.ProcessXMLTree(doc)
-	}
-	return fmt.Errorf("plugin %s does not implement XML processing", lp.name)
+	return lp.plugin.ProcessXMLTree(doc)
 }
 
 type Manager struct {
@@ -108,22 +102,9 @@ func (m *Manager) loadPlugin(path, name, mimeType string) (*LoadedPlugin, error)
 }
 
 func (m *Manager) validatePlugin(p xrpPlugin.Plugin, mimeType string) error {
-	isHTML := mimeType == "text/html" || mimeType == "application/xhtml+xml"
-
-	if isHTML {
-		if _, ok := p.(xrpPlugin.HTMLPlugin); !ok {
-			if _, ok := p.(xrpPlugin.Plugin); !ok {
-				return fmt.Errorf("plugin does not implement ProcessHTMLTree method required for MIME type %s", mimeType)
-			}
-		}
-	} else {
-		if _, ok := p.(xrpPlugin.XMLPlugin); !ok {
-			if _, ok := p.(xrpPlugin.Plugin); !ok {
-				return fmt.Errorf("plugin does not implement ProcessXMLTree method required for MIME type %s", mimeType)
-			}
-		}
-	}
-
+	// All plugins must implement the full Plugin interface, so no validation needed
+	_ = p      // Use the parameter to avoid unused parameter warning
+	_ = mimeType
 	return nil
 }
 

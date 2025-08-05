@@ -96,6 +96,7 @@ func TestNew(t *testing.T) {
 	}
 	if manager == nil {
 		t.Error("manager is nil")
+		return
 	}
 	if manager.plugins == nil {
 		t.Error("plugins map is nil")

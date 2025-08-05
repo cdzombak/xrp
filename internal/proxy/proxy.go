@@ -149,7 +149,9 @@ func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	resp.Body.Close()
+	if err := resp.Body.Close(); err != nil {
+		slog.Error("Failed to close response body", "error", err)
+	}
 
 	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
 	if int64(len(body)) > maxSize {
@@ -273,7 +275,9 @@ func (p *Proxy) serveCachedResponse(w http.ResponseWriter, entry *cache.Entry) {
 	w.Header().Set("X-XRP-Cache", "HIT")
 	
 	w.WriteHeader(entry.StatusCode)
-	w.Write(entry.Body)
+	if _, err := w.Write(entry.Body); err != nil {
+		slog.Error("Failed to write cached response body", "error", err)
+	}
 }
 
 func extractMimeType(contentType string) string {

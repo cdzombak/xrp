@@ -168,11 +168,7 @@ func (c *Cache) isExpired(entry *Entry) bool {
 	}
 
 	defaultTTL := 1 * time.Hour
-	if now.After(entry.Timestamp.Add(defaultTTL)) {
-		return true
-	}
-
-	return false
+	return now.After(entry.Timestamp.Add(defaultTTL))
 }
 
 func (c *Cache) calculateTTL(entry *Entry) time.Duration {
