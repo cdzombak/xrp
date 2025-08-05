@@ -102,11 +102,12 @@ func main() {
 		case syscall.SIGINT, syscall.SIGTERM:
 			slog.Info("Shutting down server")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			defer cancel()
 			if err := server.Shutdown(ctx); err != nil {
 				slog.Error("Server shutdown failed", "error", err)
+				cancel()
 				os.Exit(1)
 			}
+			cancel()
 			return
 		}
 	}
