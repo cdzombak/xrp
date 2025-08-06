@@ -13,10 +13,12 @@ import (
 	"github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
+// MinimalPlugin implements the XRP plugin interface
 type MinimalPlugin struct{}
 
+// ProcessHTMLTree processes HTML content
 func (p *MinimalPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
-	// Example: Add a comment to the HTML
+	// Example: Add a comment to the HTML body
 	if node.Type == html.ElementNode && node.Data == "body" {
 		comment := &html.Node{
 			Type: html.CommentNode,
@@ -27,13 +29,13 @@ func (p *MinimalPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node 
 	return nil
 }
 
+// ProcessXMLTree processes XML content  
 func (p *MinimalPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
-	// Example: Add a comment to the XML
+	// Example: Add a comment to the XML document
 	doc.CreateComment(" Modified by MinimalPlugin ")
 	return nil
 }
 
-// Export the plugin instance
-func GetPlugin() xrpplugin.Plugin {
-	return &MinimalPlugin{}
-}
+// CRITICAL: Export struct value (not pointer) to avoid plugin system issues
+// The Go plugin system with reflection fallback requires this exact pattern
+var MinimalPluginInstance = MinimalPlugin{}

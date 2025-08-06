@@ -1,6 +1,6 @@
 # XRP - HTML/XML-aware Reverse Proxy
 
-An HTML/XML-aware reverse proxy built in Go that supports plugin-based content modification, Redis caching with HTTP compliance, and configuration hot-reloading.
+An HTML/XML-aware reverse proxy that supports plugin-based content modification, Redis caching, and configuration hot-reloading.
 
 ## Features
 
@@ -65,7 +65,7 @@ timeout 30 docker compose build && timeout 30 docker compose up
 
 ## Plugin Development
 
-Plugins must implement the `Plugin` interface:
+Plugins must implement the `Plugin` interface and export struct values (not pointers):
 
 ```go
 package main
@@ -75,7 +75,7 @@ import (
     "net/url"
     "golang.org/x/net/html"
     "github.com/beevik/etree"
-    "xrp/pkg/xrpplugin"
+    "github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
 type MyPlugin struct{}
@@ -90,14 +90,30 @@ func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.
     return nil
 }
 
-func GetPlugin() xrpplugin.Plugin {
-    return &MyPlugin{}
-}
+// Export struct value (not pointer) for plugin system compatibility
+var MyPluginInstance = MyPlugin{}
 ```
 
-Build with: `go build -buildmode=plugin -o plugin.so plugin.go`
+### Development Options
 
-**Note**: Plugins must use identical dependency versions as the XRP binary. See [PLUGIN_DEPENDENCY_MANAGEMENT.md](PLUGIN_DEPENDENCY_MANAGEMENT.md) for Docker-based builds with version enforcement.
+**Local development** (fast, uses current dependencies):
+```bash
+go build -buildmode=plugin -o plugin.so plugin.go
+```
+
+**Production builds** (guaranteed compatibility):
+```bash
+# Use XRP Plugin SDK for exact dependency matching
+cp -r build/sdk/* my-plugin/
+cd my-plugin/
+make build XRP_VERSION=v1.0.0
+```
+
+### Documentation
+
+- **Plugin SDK**: [build/sdk/README.md](build/sdk/README.md) - Complete plugin development guide
+- **Dependency Management**: [PLUGIN_DEPENDENCY_MANAGEMENT.md](PLUGIN_DEPENDENCY_MANAGEMENT.md) - Docker-based builds with version enforcement
+- **Build System**: [BUILD.md](BUILD.md) - XRP build system documentation
 
 ## Testing
 

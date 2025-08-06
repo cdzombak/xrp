@@ -2,28 +2,23 @@
 # Copy this to your plugin repository and customize as needed
 
 ARG XRP_VERSION=v1.0.0
-FROM ghcr.io/cdzombak/xrp/builder:${XRP_VERSION} AS builder
+FROM ghcr.io/cdzombak/xrp-builder:${XRP_VERSION} AS builder
 
+# Set working directory for plugin build
 WORKDIR /plugin
 
-# Copy go mod files first for better caching
-COPY go.mod go.sum* ./
-
-# Ensure compatibility with XRP version
-RUN go get github.com/cdzombak/xrp/pkg/xrpplugin@${XRP_VERSION}
-RUN go mod download && go mod verify
-
-# Copy source code
+# Copy plugin source
 COPY . .
 
-# Build for target architecture
+# Build plugin using XRP dependencies available in builder image
+# The builder image contains exact dependency versions for the target XRP version
 ARG TARGETARCH
 ARG TARGETVARIANT
-RUN GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT} \
+RUN CGO_ENABLED=1 GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT} \
     go build -buildmode=plugin -o plugin_${TARGETARCH}${TARGETVARIANT}.so .
 
-# Output stage - just the plugin
+# Output stage - just the plugin binary
 FROM scratch AS output
-ARG TARGETARCH
+ARG TARGETARCH  
 ARG TARGETVARIANT
 COPY --from=builder /plugin/plugin_${TARGETARCH}${TARGETVARIANT}.so /plugin.so
