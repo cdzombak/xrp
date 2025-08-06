@@ -13,10 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/net/html"
-
-	"github.com/beevik/etree"
-
 	"xrp/internal/cache"
 	"xrp/internal/config"
 	"xrp/internal/plugins"
@@ -213,59 +209,11 @@ func (p *Proxy) processAndCacheResponse(resp *http.Response, mimeType string) ([
 }
 
 func (p *Proxy) processHTMLResponse(req *http.Request, body []byte, pluginConfigs []config.PluginConfig) ([]byte, error) {
-	doc, err := html.Parse(bytes.NewReader(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse HTML: %w", err)
-	}
-
-	ctx := req.Context()
-	requestURL := req.URL
-
-	for _, pluginConfig := range pluginConfigs {
-		plugin := p.plugins.GetPlugin(pluginConfig.Path, pluginConfig.Name)
-		if plugin == nil {
-			return nil, fmt.Errorf("plugin not found: %s/%s", pluginConfig.Path, pluginConfig.Name)
-		}
-
-		if err := plugin.ProcessHTMLTree(ctx, requestURL, doc); err != nil {
-			return nil, fmt.Errorf("plugin %s failed: %w", pluginConfig.Name, err)
-		}
-	}
-
-	var buf bytes.Buffer
-	if err := html.Render(&buf, doc); err != nil {
-		return nil, fmt.Errorf("failed to render HTML: %w", err)
-	}
-
-	return buf.Bytes(), nil
+	return p.processWithPlugins(body, req, pluginConfigs, parseHTML, processHTML, renderHTML)
 }
 
 func (p *Proxy) processXMLResponse(req *http.Request, body []byte, pluginConfigs []config.PluginConfig) ([]byte, error) {
-	doc := etree.NewDocument()
-	if err := doc.ReadFromBytes(body); err != nil {
-		return nil, fmt.Errorf("failed to parse XML: %w", err)
-	}
-
-	ctx := req.Context()
-	requestURL := req.URL
-
-	for _, pluginConfig := range pluginConfigs {
-		plugin := p.plugins.GetPlugin(pluginConfig.Path, pluginConfig.Name)
-		if plugin == nil {
-			return nil, fmt.Errorf("plugin not found: %s/%s", pluginConfig.Path, pluginConfig.Name)
-		}
-
-		if err := plugin.ProcessXMLTree(ctx, requestURL, doc); err != nil {
-			return nil, fmt.Errorf("plugin %s failed: %w", pluginConfig.Name, err)
-		}
-	}
-
-	output, err := doc.WriteToBytes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize XML: %w", err)
-	}
-
-	return output, nil
+	return p.processWithPlugins(body, req, pluginConfigs, parseXML, processXML, renderXML)
 }
 
 func (p *Proxy) shouldCache(resp *http.Response) bool {
