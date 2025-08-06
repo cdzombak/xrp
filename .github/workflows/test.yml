@@ -61,8 +61,6 @@ jobs:
             XRP_VERSION=test
           tags: ghcr.io/cdzombak/xrp-builder:test
           load: true
-          cache-from: type=gha,scope=test-builder
-          cache-to: type=gha,mode=max,scope=test-builder
 
       - name: Test XRP image build
         uses: docker/build-push-action@v6
@@ -73,8 +71,7 @@ jobs:
           build-args: |
             VERSION=test
           target: test
-          cache-from: type=gha,scope=test-xrp
-          cache-to: type=gha,mode=max,scope=test-xrp
+          load: true
 
   test-plugin-sdk:
     name: Test Plugin SDK
@@ -96,12 +93,11 @@ jobs:
             XRP_VERSION=test
           tags: ghcr.io/cdzombak/xrp-builder:test
           load: true
-          cache-from: type=gha,scope=test-builder
       
       - name: Test minimal plugin build with XRP SDK
         working-directory: build/sdk/examples/minimal
         run: |
-          # Build using existing Dockerfile with XRP builder image
+          # Build using existing Dockerfile with XRP builder image (single platform, local only)
           docker buildx build \
             --platform linux/amd64 \
             --build-arg XRP_VERSION=test \
