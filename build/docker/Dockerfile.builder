@@ -16,7 +16,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq=1.6-2.1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Go
 RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
     && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
     && rm go${GO_VERSION}.linux-amd64.tar.gz
@@ -25,30 +24,12 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CGO_ENABLED=1
 ENV XRP_VERSION=${XRP_VERSION}
 
-# Extract exact dependency versions and source from XRP release
-RUN if echo "${XRP_VERSION}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+'; then \
-        echo "Extracting dependency versions and source from XRP release ${XRP_VERSION}"; \
-        wget -q https://github.com/cdzombak/xrp/archive/${XRP_VERSION}.tar.gz && \
-        tar -xzf ${XRP_VERSION}.tar.gz && \
-        cp xrp-*/go.mod /xrp-go.mod && \
-        cp xrp-*/go.sum /xrp-go.sum 2>/dev/null || touch /xrp-go.sum && \
-        # Copy XRP source for plugin builds \
-        mkdir -p /xrp-source && \
-        cp -r xrp-*/* /xrp-source/ && \
-        rm -rf xrp-* ${XRP_VERSION}.tar.gz; \
-    else \
-        echo "Development version (${XRP_VERSION}) - using local XRP source if available"; \
-        touch /xrp-go.mod /xrp-go.sum; \
-        mkdir -p /xrp-source; \
-    fi
+COPY go.mod /xrp-go.mod
+COPY go.sum /xrp-go.sum
+COPY . /xrp-source/
+WORKDIR /xrp-source
+RUN go mod download
 
-# Pre-download XRP plugin interface if available
-RUN if echo "${XRP_VERSION}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+'; then \
-        go install github.com/cdzombak/xrp/pkg/xrpplugin@${XRP_VERSION} || \
-        echo "Warning: Could not pre-install XRP plugin interface"; \
-    fi
-
-# Add metadata
 LABEL org.opencontainers.image.source="https://github.com/cdzombak/xrp"
 LABEL org.opencontainers.image.version="${XRP_VERSION}"
 LABEL xrp.version="${XRP_VERSION}"

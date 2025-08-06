@@ -1,5 +1,5 @@
-ARG BUILDER_VERSION=latest
-FROM ghcr.io/cdzombak/xrp/builder:${BUILDER_VERSION} AS builder
+ARG VERSION=dev
+FROM ghcr.io/cdzombak/xrp-builder:${VERSION} AS builder
 
 WORKDIR /workspace
 
@@ -13,7 +13,6 @@ COPY . .
 # Build for target architecture
 ARG TARGETARCH
 ARG TARGETVARIANT
-ARG VERSION=development
 RUN GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT} \
     go build -ldflags="-s -w -X main.version=${VERSION}" -o xrp .
 

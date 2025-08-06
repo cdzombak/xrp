@@ -40,8 +40,8 @@ build/example-plugins: ## Build example plugins using local Go
 	go build -buildmode=plugin -o examples/plugins/xml_transformer.so examples/plugins/xml_transformer.go
 
 .PHONY: build/builder
-build/builder: ## Build the Docker build container image
-	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME)-builder VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
+build/builder: ## Build & push the Docker build container image
+	PUSH=true REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME)-builder VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
 		./build/scripts/build.sh builder
 
 .PHONY: build/binaries
@@ -63,16 +63,6 @@ test/go: ## Run xrp test suite, with coverage
 test/docker: build/builder ## Run xrp test suite in Docker
 	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) \
 		./build/scripts/build.sh test
-
-.PHONY: build/builder
-build/builder: ## Build builder image locally
-	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) \
-		./build/scripts/build.sh builder
-
-.PHONY: build/all
-build/all: ## TODO(cdzombak): understand this
-	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
-		./build/scripts/build.sh all
 
 .PHONY: ci/local
 ci/local: test/docker build/binaries build/image ## Run a complete local build + tests in Docker

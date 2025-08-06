@@ -46,10 +46,17 @@ check_prerequisites() {
 
 # Build binaries for all platforms
 build_binaries() {
-    log "Building XRP binaries for platforms: $PLATFORMS"
+    local platforms=""
+    if [[ "${PUSH:-false}" == "true" ]]; then
+        platforms="$PLATFORMS"
+        log "Building XRP binaries for platforms: $platforms"
+    else
+        platforms="linux/amd64"
+        log "Building XRP binaries for platform: $platforms"
+    fi
     
     docker buildx build \
-        --platform "$PLATFORMS" \
+        --platform "$platforms" \
         --target binary \
         --output type=local,dest=./dist \
         --build-arg VERSION="$VERSION" \
@@ -65,6 +72,8 @@ run_tests() {
     docker buildx build \
         --target test \
         --progress plain \
+        --build-arg VERSION="$VERSION" \
+        --platform "linux/amd64" \
         -f build/docker/Dockerfile.xrp .
     
     log "Tests completed successfully"
@@ -73,16 +82,19 @@ run_tests() {
 # Build Docker image
 build_image() {
     local push_flag=""
+    local platforms=""
     if [[ "${PUSH:-false}" == "true" ]]; then
         push_flag="--push"
+        platforms="$PLATFORMS"
         log "Building and pushing Docker image: $REGISTRY/$IMAGE_NAME:$VERSION"
     else
         push_flag="--load"
+        platforms="linux/amd64"
         log "Building Docker image: $REGISTRY/$IMAGE_NAME:$VERSION"
     fi
     
     docker buildx build \
-        --platform "$PLATFORMS" \
+        --platform "$platforms" \
         --target runtime \
         --tag "$REGISTRY/$IMAGE_NAME:$VERSION" \
         $push_flag \
@@ -99,17 +111,20 @@ build_image() {
 # Build builder image
 build_builder() {
     local push_flag=""
+    local platforms=""
     if [[ "${PUSH:-false}" == "true" ]]; then
         push_flag="--push"
-        log "Building and pushing builder image: $REGISTRY/$IMAGE_NAME/builder:$VERSION"
+        platforms="$PLATFORMS"
+        log "Building and pushing builder image: $REGISTRY/$IMAGE_NAME-builder:$VERSION"
     else
         push_flag="--load"
-        log "Building builder image: $REGISTRY/$IMAGE_NAME/builder:$VERSION"
+        platforms="linux/amd64"
+        log "Building builder image: $REGISTRY/$IMAGE_NAME-builder:$VERSION"
     fi
     
     docker buildx build \
-        --platform linux/amd64,linux/arm64 \
-        --tag "$REGISTRY/$IMAGE_NAME/builder:$VERSION" \
+        --platform "$platforms" \
+        --tag "$REGISTRY/$IMAGE_NAME-builder:$VERSION" \
         $push_flag \
         --build-arg XRP_VERSION="$VERSION" \
         -f build/docker/Dockerfile.builder .
@@ -132,14 +147,10 @@ usage() {
     echo "  builder     Build builder image"
     echo "  all         Build everything (binaries, test, image)"
     echo ""
-    echo "Options:"
-    echo "  --version   Set version (default: git describe)"
-    echo "  --platforms Set target platforms (default: $PLATFORMS)"
-    echo ""
     echo "Environment variables:"
     echo "  REGISTRY    Container registry (default: $REGISTRY)"
     echo "  IMAGE_NAME  Image name (default: $IMAGE_NAME)"
-    echo "  VERSION     Version tag (default: git describe)"
+    echo "  VERSION     Version tag (default: from .version.sh)"
     echo "  PLATFORMS   Target platforms (default: $PLATFORMS)"
     echo "  PUSH        Set to 'true' to push images"
 }
