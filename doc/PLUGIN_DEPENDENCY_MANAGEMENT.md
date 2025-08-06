@@ -48,7 +48,7 @@ XRP_VERSION=development make build/builder # Creates builder with current deps
    FROM ghcr.io/cdzombak/xrp-builder:v1.0.0 AS builder
    
    # Copy your plugin source
-   COPY . /plugin-source/
+   COPY .. /plugin-source/
    WORKDIR /plugin-source
    
    # Build with exact XRP dependencies available
@@ -61,7 +61,7 @@ XRP_VERSION=development make build/builder # Creates builder with current deps
    REGISTRY ?= ghcr.io
    IMAGE_NAME ?= myuser/my-plugin
    
-   .PHONY: build
+   .PHONY: ../build
    build: ## Build plugin using XRP builder image
    	docker buildx build \
    		--build-arg XRP_VERSION=$(XRP_VERSION) \

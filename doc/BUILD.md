@@ -109,7 +109,7 @@ The XRP builder image contains all dependencies needed to build plugins compatib
 FROM ghcr.io/cdzombak/xrp-builder:v1.0.0 AS builder
 
 # Copy your plugin source
-COPY . /plugin-source/
+COPY .. /plugin-source/
 WORKDIR /plugin-source
 
 # Build your plugin
