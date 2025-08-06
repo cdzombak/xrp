@@ -1,8 +1,47 @@
+// Package config provides configuration loading and validation for the XRP proxy.
+//
+// It supports JSON-based configuration files with the following features:
+// - Backend URL validation (must be HTTP/HTTPS)
+// - Redis connection configuration
+// - MIME type and plugin mapping with validation
+// - Plugin naming convention enforcement (must end with "Plugin")
+// - Plugin file validation (must be .so files)
+// - Cookie denylist for cache exclusion
+// - Request timeout and response size limits
+//
+// Configuration files are validated on load and can be hot-reloaded via SIGHUP signal.
+// Invalid configurations are rejected while keeping the current configuration active.
+//
+// Example configuration:
+//
+//	{
+//	  "backend_url": "http://localhost:8081",
+//	  "redis": {
+//	    "addr": "localhost:6379",
+//	    "password": "",
+//	    "db": 0
+//	  },
+//	  "mime_types": [
+//	    {
+//	      "mime_type": "text/html",
+//	      "plugins": [
+//	        {
+//	          "path": "./plugins/html_modifier.so",
+//	          "name": "HTMLModifierPlugin"
+//	        }
+//	      ]
+//	    }
+//	  ],
+//	  "cookie_denylist": ["session"],
+//	  "request_timeout": 30,
+//	  "max_response_size_mb": 10
+//	}
 package config
 
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -67,8 +106,25 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("backend_url is required")
 	}
 
+	// Validate backend URL format
+	if _, err := url.Parse(config.BackendURL); err != nil {
+		return fmt.Errorf("backend_url must be a valid HTTP/HTTPS URL: %w", err)
+	}
+	parsedURL, _ := url.Parse(config.BackendURL)
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("backend_url must be a valid HTTP/HTTPS URL")
+	}
+
 	if config.Redis.Addr == "" {
 		return fmt.Errorf("redis.addr is required")
+	}
+
+	// Validate timeout values
+	if config.RequestTimeout < 0 {
+		return fmt.Errorf("request_timeout must be positive")
+	}
+	if config.MaxResponseSizeMB < 0 {
+		return fmt.Errorf("max_response_size_mb must be positive")
 	}
 
 	for i, mimeConfig := range config.MimeTypes {
@@ -87,6 +143,16 @@ func validateConfig(config *Config) error {
 			}
 			if plugin.Name == "" {
 				return fmt.Errorf("mime_types[%d].plugins[%d]: name is required", i, j)
+			}
+
+			// Validate plugin naming convention
+			if !strings.HasSuffix(plugin.Name, "Plugin") {
+				return fmt.Errorf("mime_types[%d].plugins[%d]: plugin name '%s' should end with 'Plugin'", i, j, plugin.Name)
+			}
+
+			// Validate plugin file extension  
+			if !strings.HasSuffix(plugin.Path, ".so") {
+				return fmt.Errorf("mime_types[%d].plugins[%d]: plugin path '%s' must end with '.so'", i, j, plugin.Path)
 			}
 		}
 	}

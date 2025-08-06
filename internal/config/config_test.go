@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -125,6 +126,7 @@ func TestValidateConfig(t *testing.T) {
 		name        string
 		config      *Config
 		expectError bool
+		errorMsg    string
 	}{
 		{
 			name: "valid config",
@@ -135,7 +137,7 @@ func TestValidateConfig(t *testing.T) {
 					{
 						MimeType: "text/html",
 						Plugins: []PluginConfig{
-							{Path: "/path/to/plugin.so", Name: "MyPlugin"},
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
 						},
 					},
 				},
@@ -148,6 +150,7 @@ func TestValidateConfig(t *testing.T) {
 				Redis: RedisConfig{Addr: "localhost:6379"},
 			},
 			expectError: true,
+			errorMsg:    "backend_url is required",
 		},
 		{
 			name: "empty redis addr",
@@ -156,17 +159,110 @@ func TestValidateConfig(t *testing.T) {
 				Redis:      RedisConfig{},
 			},
 			expectError: true,
+			errorMsg:    "redis.addr is required",
+		},
+		{
+			name: "invalid backend URL",
+			config: &Config{
+				BackendURL: "not-a-url",
+				Redis:      RedisConfig{Addr: "localhost:6379"},
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "backend_url must be a valid HTTP/HTTPS URL",
+		},
+		{
+			name: "plugin name without Plugin suffix",
+			config: &Config{
+				BackendURL: "http://localhost:8081",
+				Redis:      RedisConfig{Addr: "localhost:6379"},
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyModule"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "plugin name 'MyModule' should end with 'Plugin'",
+		},
+		{
+			name: "plugin path not .so file",
+			config: &Config{
+				BackendURL: "http://localhost:8081",
+				Redis:      RedisConfig{Addr: "localhost:6379"},
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.exe", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "plugin path './plugins/plugin.exe' must end with '.so'",
+		},
+		{
+			name: "negative request timeout",
+			config: &Config{
+				BackendURL:     "http://localhost:8081",
+				Redis:          RedisConfig{Addr: "localhost:6379"},
+				RequestTimeout: -1,
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "request_timeout must be positive",
+		},
+		{
+			name: "negative max response size",
+			config: &Config{
+				BackendURL:        "http://localhost:8081",
+				Redis:             RedisConfig{Addr: "localhost:6379"},
+				MaxResponseSizeMB: -1,
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "max_response_size_mb must be positive",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateConfig(tt.config)
-			if tt.expectError && err == nil {
-				t.Error("expected error but got none")
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf("unexpected error: %v", err)
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error but got none")
+				} else if tt.errorMsg != "" && !strings.Contains(err.Error(), tt.errorMsg) {
+					t.Errorf("expected error to contain '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
 			}
 		})
 	}
