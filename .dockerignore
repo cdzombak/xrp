@@ -9,7 +9,7 @@ coverage.html
 .git/
 .github/
 *.md
-!BUILD.md
+!doc/BUILD.md
 Makefile
 .gitignore
 
@@ -35,7 +35,7 @@ docker-compose*.yml
 
 # Documentation (except BUILD.md which containers may need)
 *.md
-!BUILD.md
+!doc/BUILD.md
 
 # System files
 .DS_Store

@@ -112,8 +112,8 @@ make build XRP_VERSION=v1.0.0
 ### Documentation
 
 - **Plugin SDK**: [build/sdk/README.md](build/sdk/README.md) - Complete plugin development guide
-- **Dependency Management**: [PLUGIN_DEPENDENCY_MANAGEMENT.md](PLUGIN_DEPENDENCY_MANAGEMENT.md) - Docker-based builds with version enforcement
-- **Build System**: [BUILD.md](BUILD.md) - XRP build system documentation
+- **Dependency Management**: [PLUGIN_DEPENDENCY_MANAGEMENT.md](doc/PLUGIN_DEPENDENCY_MANAGEMENT.md) - Docker-based builds with version enforcement
+- **Build System**: [BUILD.md](doc/BUILD.md) - XRP build system documentation
 
 ## Testing
 
