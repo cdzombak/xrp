@@ -26,9 +26,18 @@ COPY --from=builder /workspace/xrp /xrp
 
 # Runtime stage - full container image
 FROM debian:bookworm-slim AS runtime
+
+ARG VERSION=dev
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /workspace/xrp /usr/local/bin/
+
+LABEL org.opencontainers.image.source="https://github.com/cdzombak/xrp"
+LABEL org.opencontainers.image.description="XRP HTML/XML-aware Reverse Proxy"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.version="${VERSION}"
+
 ENTRYPOINT ["/usr/local/bin/xrp"]

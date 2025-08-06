@@ -39,6 +39,8 @@ WORKDIR /xrp-source
 RUN go mod download
 
 LABEL org.opencontainers.image.source="https://github.com/cdzombak/xrp"
+LABEL org.opencontainers.image.description="XRP Plugin Builder Image"
+LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.version="${XRP_VERSION}"
 LABEL xrp.version="${XRP_VERSION}"
 LABEL go.version="${GO_VERSION}"
