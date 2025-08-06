@@ -16,9 +16,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     jq=1.6-2.1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz \
-    && rm go${GO_VERSION}.linux-amd64.tar.gz
+# Determine Go architecture based on build platform
+ARG TARGETPLATFORM
+RUN case "${TARGETPLATFORM}" in \
+        "linux/amd64") GOARCH="amd64" ;; \
+        "linux/arm64") GOARCH="arm64" ;; \
+        "linux/arm/v7") GOARCH="armv6l" ;; \
+        *) echo "Unsupported platform: ${TARGETPLATFORM}" && exit 1 ;; \
+    esac \
+    && wget -q https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz \
+    && tar -C /usr/local -xzf go${GO_VERSION}.linux-${GOARCH}.tar.gz \
+    && rm go${GO_VERSION}.linux-${GOARCH}.tar.gz
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV CGO_ENABLED=1
