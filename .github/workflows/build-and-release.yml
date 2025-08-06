@@ -118,6 +118,10 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP Plugin Builder Image
             org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            xrp.version=${{ steps.version.outputs.version }}
+            go.version=1.24.5
+            debian.version=bookworm
 
   # Step 2: Build multi-platform binaries using the builder image
   build-binaries:
@@ -213,6 +217,7 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP HTML/XML-aware Reverse Proxy
             org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.version=${{ needs.build-builder.outputs.version }}
 
   # Step 4: Create GitHub Release (semver tags only)
   release:
