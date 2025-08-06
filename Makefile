@@ -1,5 +1,3 @@
-.PHONY: build test clean install run example-plugins docker-up docker-down docker-logs docker-build docker-restart dev-env
-.PHONY: build-binaries build-image build-builder test-docker save-image load-image push-image ci-local
 
 # Docker build configuration
 REGISTRY ?= ghcr.io
@@ -7,117 +5,81 @@ IMAGE_NAME ?= cdzombak/xrp
 VERSION ?= $(shell git describe --tags --always --dirty)
 PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 
-# Traditional Go build
-build:
-	go build -o xrp .
+default: help
+.PHONY: help  # via https://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
+help: ## Print help
+	@grep -E '^[a-zA-Z_-\/]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
-# Run tests
-test:
-	go test ./...
-
-# Run tests with coverage
-test-coverage:
-	go test -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
-
-# Clean build artifacts
-clean:
+.PHONY: clean
+clean: ## Clean build artifacts
 	rm -f xrp coverage.out coverage.html
 	rm -f examples/plugins/*.so
 	rm -rf dist/
 	rm -f xrp-image.tar
 
-# Install dependencies
-install:
+.PHONY: deps
+deps: deps/go ## Install dependencies
+
+.PHONY: deps/go
+deps/go: ## Install Go dependencies
 	go mod download
 	go mod tidy
 
-# Run the server with example config
-run: build
-	./xrp -config config.example.json
+.PHONY: lint/go
+lint/go: ## Lint Go code
+	golangci-lint run
+	go vet ./...
 
-# Build example plugins
-example-plugins:
+.PHONY: build/go
+build/go: ## Build xrp using local Go
+	go build -o xrp .
+
+.PHONY: build/example-plugins
+build/example-plugins: ## Build example plugins using local Go
 	go build -buildmode=plugin -o examples/plugins/html_modifier.so examples/plugins/html_modifier.go
 	go build -buildmode=plugin -o examples/plugins/xml_transformer.so examples/plugins/xml_transformer.go
 
-# Development setup
-dev-setup: install example-plugins
+.PHONY: build/builder
+build/builder: ## Build the Docker build container image
+	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME)-builder VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
+		./build/scripts/build.sh builder
 
-# Lint code
-lint:
-	go fmt ./...
-	go vet ./...
+.PHONY: build/binaries
+build/binaries: build/builder ## Build binaries (only) using Docker build container
+	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
+		./build/scripts/build.sh binaries
 
-# Check for security issues (requires gosec)
-security:
-	gosec ./...
+.PHONY: build/image
+build/image: build/builder ## Build xrp Docker image using Docker build container
+	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
+		./build/scripts/build.sh image
 
-# Docker build targets
+.PHONY: test/go
+test/go: ## Run xrp test suite, with coverage
+	go test -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out -o coverage.html
 
-# Build binaries only (no push)
-build-binaries:
-	docker buildx build \
-		--platform $(PLATFORMS) \
-		--target binary \
-		--output type=local,dest=./dist \
-		--build-arg VERSION=$(VERSION) \
-		-f build/docker/Dockerfile.xrp .
+.PHONY: test/docker
+test/docker: build/builder ## Run xrp test suite in Docker
+	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) \
+		./build/scripts/build.sh test
 
-# Build Docker image locally (no push)
-build-image:
-	docker buildx build \
-		--platform $(PLATFORMS) \
-		--target runtime \
-		--tag $(REGISTRY)/$(IMAGE_NAME):$(VERSION) \
-		--load \
-		-f build/docker/Dockerfile.xrp .
+.PHONY: build/builder
+build/builder: ## Build builder image locally
+	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) \
+		./build/scripts/build.sh builder
 
-# Run tests in Docker
-test-docker:
-	docker buildx build \
-		--target test \
-		--progress plain \
-		-f build/docker/Dockerfile.xrp .
+.PHONY: build/all
+build/all: ## TODO(cdzombak): understand this
+	REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
+		./build/scripts/build.sh all
 
-# Build and export image to tar
-save-image:
-	docker buildx build \
-		--platform $(PLATFORMS) \
-		--target runtime \
-		--tag $(REGISTRY)/$(IMAGE_NAME):$(VERSION) \
-		--output type=docker,dest=./xrp-image.tar \
-		-f build/docker/Dockerfile.xrp .
-
-# Load saved image
-load-image:
-	docker load < xrp-image.tar
-
-# Push pre-built image (requires load-image first)
-push-image:
-	docker push $(REGISTRY)/$(IMAGE_NAME):$(VERSION)
-
-# Build builder image locally
-build-builder:
-	docker buildx build \
-		--platform linux/amd64,linux/arm64 \
-		--tag $(REGISTRY)/$(IMAGE_NAME)/builder:$(VERSION) \
-		--build-arg XRP_VERSION=$(VERSION) \
-		--load \
-		-f build/docker/Dockerfile.builder .
-
-# Complete local build + test workflow
-ci-local: test-docker build-binaries build-image
+.PHONY: ci/local
+ci/local: test/docker build/binaries build/image ## Run a complete local build + tests in Docker
 	@echo "✅ All builds completed successfully"
 	@echo "📦 Binaries in ./dist/"
 	@echo "🐳 Image tagged as $(REGISTRY)/$(IMAGE_NAME):$(VERSION)"
 
-# Build using scripts
-build-script-all:
-	./build/scripts/build.sh all
-
-build-script-binaries:
-	./build/scripts/build.sh binaries
-
-build-script-test:
-	./build/scripts/build.sh test
+#push-image: build-image
+#	PUSH=true REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
+#		./build/scripts/build.sh image
