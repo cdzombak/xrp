@@ -1,50 +1,27 @@
 # XRP - HTML/XML-aware Reverse Proxy
 
-`xrp` is a reverse proxy that can parse and modify HTML and XML responses from backend servers. It is extensible via Golang plugins, allowing users to modify the response bodies of HTML/XML content in a flexible and performant manner.
+An HTML/XML-aware reverse proxy built in Go that supports plugin-based content modification, Redis caching with HTTP compliance, and configuration hot-reloading.
 
 ## Features
 
-- **Plugin-based content modification**: Support for Golang plugins to modify HTML and XML responses
-- **Redis caching**: Intelligent caching with HTTP compliance for configured MIME types
-- **HTML/XML processing**: Parse and modify HTML/XML content using Go's standard libraries
-- **Configuration hot-reload**: Reload configuration on SIGHUP signal
-- **Cookie denylist**: Configurable cookie-based cache exclusion
-- **Multi-architecture support**: Docker builds for linux/amd64, linux/arm64, linux/arm/v7
-- **Plugin SDK**: Complete toolkit for external plugin development
+- **Plugin-based content modification** - Go plugins modify HTML/XML responses
+- **Redis caching** - HTTP-compliant caching with configurable MIME types  
+- **Configuration hot-reload** - Reload config via SIGHUP signal
+- **Multi-architecture support** - Docker builds for amd64, arm64, arm/v7
 
 ## Quick Start
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.24.5 or later
 - Redis server (for caching)
 
 ### Building
 
-#### Traditional Go Build
 ```bash
-# Clone and build
-git clone <repository-url>
-cd xrp
-make build
-
-# Or just use go build
-go build -o xrp .
+go build .                    # Build main binary
+make example-plugins         # Build example plugins
 ```
-
-#### Docker Multi-Architecture Build
-```bash
-# Build for all supported platforms
-make build-binaries
-
-# Build Docker image
-make build-image
-
-# Complete CI workflow locally
-make ci-local
-```
-
-For detailed build instructions, see [BUILD.md](BUILD.md).
 
 ### Configuration
 
@@ -77,59 +54,18 @@ Create a `config.json` file based on the example:
 
 ### Running
 
-#### With Docker Compose (Recommended)
-
 ```bash
-# Start the complete environment (Nginx + Redis + XRP)
-make dev-env
+# Docker setup (nginx + redis + xrp)
+cd examples/
+timeout 30 docker compose build && timeout 30 docker compose up
 
-# Or manually with docker-compose
-docker-compose up -d
-
-# View logs
-make docker-logs
-
-# Stop the environment
-make docker-down
-```
-
-This starts:
-- **Nginx** on port 8081 (backend server)
-- **Redis** on port 6379 (cache)  
-- **XRP** on port 8080 (reverse proxy)
-
-#### Manual Setup
-
-```bash
-# Start Redis separately
-docker run --name xrp-redis -p 6379:6379 -d redis:alpine
-
-# Build and run XRP
-make build
-./xrp -config config.json -addr :8080
+# Or run directly  
+./xrp -config config.example.json
 ```
 
 ## Plugin Development
 
-### For External Plugin Authors
-
-Download the Plugin SDK and follow the quick start guide:
-
-```bash
-# Download SDK
-curl -L https://github.com/cdzombak/xrp/releases/latest/download/xrp-plugin-sdk.tar.gz | tar xz
-
-# Copy templates to your plugin repository
-cp xrp-plugin-sdk/Dockerfile.plugin ./Dockerfile
-cp xrp-plugin-sdk/Makefile ./Makefile
-
-# Build your plugin
-make build XRP_VERSION=v1.0.0
-```
-
-### Plugin Interface
-
-Plugins must implement the `Plugin` interface and export a `GetPlugin()` function:
+Plugins must implement the `Plugin` interface:
 
 ```go
 package main
@@ -139,7 +75,7 @@ import (
     "net/url"
     "golang.org/x/net/html"
     "github.com/beevik/etree"
-    "github.com/cdzombak/xrp/pkg/xrpplugin"
+    "xrp/pkg/xrpplugin"
 )
 
 type MyPlugin struct{}
@@ -154,117 +90,24 @@ func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.
     return nil
 }
 
-// Export the plugin
 func GetPlugin() xrpplugin.Plugin {
     return &MyPlugin{}
 }
 ```
 
-### Building Plugins
+Build with: `go build -buildmode=plugin -o plugin.so plugin.go`
 
-#### With Plugin SDK (Recommended)
-```bash
-make build XRP_VERSION=v1.0.0  # Multi-arch build
-make test                      # Test compatibility
-```
+**Note**: Plugins must use identical dependency versions as the XRP binary. See [PLUGIN_DEPENDENCY_MANAGEMENT.md](PLUGIN_DEPENDENCY_MANAGEMENT.md) for Docker-based builds with version enforcement.
 
-#### Traditional Build
-```bash
-go build -buildmode=plugin -o my_plugin.so my_plugin.go
-```
-
-For complete plugin development guide, see [BUILD.md](BUILD.md#for-plugin-authors).
-
-## Response Headers
-
-XRP adds the following headers to responses:
-
-- `X-XRP-Version`: Version of XRP that processed the response
-- `X-XRP-Cache`: Either "HIT" (served from cache) or "MISS" (processed fresh)
-
-## Development
-
-### Quick Start
+## Testing
 
 ```bash
-# Start complete development environment
-make dev-env
-
-# This is equivalent to:
-docker-compose up -d
+go test ./...                          # All tests
+go test ./internal/... -short          # Fast unit tests  
+timeout 30 docker compose build && timeout 30 docker compose up  # Integration test
 ```
 
-### Manual Development
-
-```bash
-# Install dependencies
-make install
-
-# Build example plugins
-make example-plugins
-
-# Run tests
-make test
-
-# Run with coverage
-make test-coverage
-
-# Build for local development
-make build
-```
-
-### Docker Commands
-
-```bash
-# Build Docker images
-make docker-build
-
-# Start services
-make docker-up
-
-# Stop services  
-make docker-down
-
-# View logs
-make docker-logs
-
-# Restart just XRP
-make docker-restart
-```
-
-## Configuration Reference
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `backend_url` | string | URL of the backend server to proxy to |
-| `redis.addr` | string | Redis server address |
-| `redis.password` | string | Redis password (optional) |
-| `redis.db` | int | Redis database number |
-| `mime_types` | array | List of MIME types and their associated plugins |
-| `cookie_denylist` | array | Cookies that prevent caching when present |
-| `request_timeout` | int | Timeout for backend requests in seconds (default: 30) |
-| `max_response_size_mb` | int | Maximum response size to process in MB (default: 10) |
-
-### Supported MIME Types
-
-- `text/html`
-- `application/xhtml+xml`
-- `text/xml`
-- `application/xml`
-- `application/rss+xml`
-- `application/atom+xml`
-
-## Caching Behavior
-
-XRP caches responses based on:
-
-- HTTP cache headers (`Cache-Control`, `Expires`, `ETag`)
-- Request method (only GET requests)
-- Response status (only 200 OK)
-- Cookie denylist (requests with denylisted cookies are not cached)
-- Vary header support (different cache entries per variation)
-
-## Architecture
+## How it Works
 
 ```
 Client -> XRP -> Backend
@@ -272,14 +115,8 @@ Client -> XRP -> Backend
           v
        Redis Cache
           |
-          v
+          v  
        Plugins
 ```
 
-## License
-
-[Add your license here]
-
-## Contributing
-
-[Add contribution guidelines here]
+XRP intercepts responses, applies plugins to modify HTML/XML content, and caches results in Redis with HTTP compliance (respects `Cache-Control`, `ETag`, etc.).
