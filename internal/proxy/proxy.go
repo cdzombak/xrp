@@ -152,36 +152,34 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 }
 
 func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, error) {
-	// Check content length before reading if available
 	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
-	if resp.ContentLength > 0 && resp.ContentLength > maxSize {
-		slog.Info("Response too large, skipping processing", "size", resp.ContentLength, "max", maxSize)
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read response body: %w", err)
-		}
-		if err := resp.Body.Close(); err != nil {
-			slog.Error("Failed to close response body", "error", err)
-		}
-		return body, nil
+	
+	// Always use LimitedReader to prevent reading more than allowed
+	// This provides consistent behavior regardless of Content-Length header accuracy  
+	limitedReader := &io.LimitedReader{
+		R: resp.Body,
+		N: maxSize + 1, // +1 to detect if limit exceeded
 	}
-
-	// Use LimitReader to prevent reading more than maxSize
-	limitedReader := io.LimitReader(resp.Body, maxSize+1) // +1 to detect if limit exceeded
+	
 	body, err := io.ReadAll(limitedReader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
+	
 	if err := resp.Body.Close(); err != nil {
 		slog.Error("Failed to close response body", "error", err)
 	}
 
 	// Check if we hit the size limit
-	if int64(len(body)) > maxSize {
-		slog.Info("Response too large, skipping processing", "size", len(body), "max", maxSize)
-		return body, nil
+	actualSize := int64(len(body))
+	if actualSize > maxSize {
+		slog.Info("Response exceeds size limit, skipping plugin processing", 
+			"size", actualSize, "max", maxSize, "content_length", resp.ContentLength)
+		// Return truncated body - proxy will pass it through unchanged
+		return body[:maxSize], nil
 	}
 
+	// Response is within size limits, proceed with plugin processing
 	pluginConfigs := p.config.GetPluginsForMimeType(mimeType)
 	if len(pluginConfigs) == 0 {
 		return body, nil

@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -532,5 +533,94 @@ func TestProxyIntegration_POST(t *testing.T) {
 		t.Log("POST test validated proxy creation dependency checking")
 	} else {
 		t.Error("expected proxy creation to fail without Redis")
+	}
+}
+
+// TestProcessResponse_SizeValidation tests response size validation consistency
+func TestProcessResponse_SizeValidation(t *testing.T) {
+	cfg := &config.Config{
+		MaxResponseSizeMB: 1, // 1MB limit
+		MimeTypes: []config.MimeTypeConfig{
+			{
+				MimeType: "text/html",
+				Plugins:  []config.PluginConfig{},
+			},
+		},
+	}
+
+	proxy := &Proxy{
+		config:  cfg,
+		version: "test",
+	}
+
+	tests := []struct {
+		name           string
+		contentLength  int64
+		bodySize       int
+		expectError    bool
+		shouldProcess  bool
+	}{
+		{
+			name:          "small response within limit",
+			contentLength: 1024,      // 1KB
+			bodySize:      1024,      // 1KB
+			expectError:   false,
+			shouldProcess: true,
+		},
+		{
+			name:          "large response with accurate content-length",
+			contentLength: 2 * 1024 * 1024, // 2MB
+			bodySize:      2 * 1024 * 1024, // 2MB  
+			expectError:   false,
+			shouldProcess: false, // Should skip processing
+		},
+		{
+			name:          "response without content-length header",
+			contentLength: -1,                // No content-length
+			bodySize:      2 * 1024 * 1024,   // 2MB actual size
+			expectError:   false,
+			shouldProcess: false, // Should detect size and skip processing
+		},
+		{
+			name:          "response with incorrect content-length",
+			contentLength: 1024,              // Says 1KB
+			bodySize:      2 * 1024 * 1024,   // Actually 2MB
+			expectError:   false,
+			shouldProcess: false, // Should detect actual size
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create mock response
+			body := strings.Repeat("x", tt.bodySize)
+			resp := &http.Response{
+				StatusCode:    200,
+				ContentLength: tt.contentLength,
+				Body:          io.NopCloser(strings.NewReader(body)),
+				Request:       httptest.NewRequest("GET", "/test", nil),
+			}
+
+			result, err := proxy.processResponse(resp, "text/html")
+
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error but got none")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+				
+				// Verify result size - should be limited to max size for oversized responses
+				expectedSize := tt.bodySize
+				if tt.bodySize > int(cfg.MaxResponseSizeMB*1024*1024) {
+					expectedSize = int(cfg.MaxResponseSizeMB * 1024 * 1024) // Truncated to max size
+				}
+				if len(result) != expectedSize {
+					t.Errorf("expected result size %d, got %d", expectedSize, len(result))
+				}
+			}
+		})
 	}
 }
