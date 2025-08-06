@@ -1,3 +1,31 @@
+// Package plugins provides plugin management and loading functionality for XRP.
+//
+// This package handles the secure loading, validation, and management of Go plugins
+// that implement the XRP plugin interface. It supports:
+//
+// - Secure plugin file validation (permissions, paths, symlinks)
+// - Simple GetPlugin() function-based plugin loading
+// - Plugin lifecycle management and hot-reloading
+// - Thread-safe plugin registry and retrieval
+// - Comprehensive security controls and sandboxing
+//
+// Plugin Loading Process:
+//
+// 1. Security validation: Check file permissions, paths, and prevent symlink attacks
+// 2. Plugin loading: Load shared library and look up GetPlugin() function
+// 3. Instance creation: Call GetPlugin() to get a fresh plugin instance
+// 4. Interface validation: Ensure plugin implements required methods
+// 5. Registration: Store plugin for efficient retrieval during request processing
+//
+// Example plugin implementation:
+//
+//	func GetPlugin() xrpplugin.Plugin {
+//	    return &MyPlugin{}
+//	}
+//
+// Security features include validation of file permissions, prevention of
+// directory traversal attacks, and restriction to allowed plugin directories.
+// All plugin loading operations are logged for security auditing.
 package plugins
 
 import (

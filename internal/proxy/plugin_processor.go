@@ -1,3 +1,6 @@
+// This file contains the common plugin processing logic for XRP.
+// It provides a generic framework for processing any document type (HTML, XML)
+// with plugins while maintaining type safety and consistent error handling.
 package proxy
 
 import (

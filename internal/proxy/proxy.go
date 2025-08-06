@@ -1,3 +1,30 @@
+// Package proxy implements the core HTTP reverse proxy functionality for XRP.
+//
+// This package provides an HTTP-aware reverse proxy that can intercept and modify
+// HTML and XML responses using a plugin system. The proxy supports:
+//
+// - Intelligent Redis-based caching with HTTP compliance
+// - Plugin-based content modification for HTML/XML responses  
+// - Request/response size validation and security controls
+// - Version headers and cache status reporting
+// - Configuration hot-reloading and graceful error handling
+//
+// The proxy works by intercepting HTTP responses, checking if they contain
+// HTML or XML content that should be processed, parsing the content into
+// a document tree, running configured plugins against the tree, and then
+// serializing the modified content back to the response.
+//
+// Example usage:
+//
+//	proxy, err := proxy.New(config, "v1.0.0")
+//	if err != nil {
+//	    log.Fatal(err)
+//	}
+//	
+//	http.ListenAndServe(":8080", proxy)
+//
+// The proxy automatically adds X-XRP-Version and X-XRP-Cache headers to
+// all responses to indicate processing status and enable monitoring.
 package proxy
 
 import (
