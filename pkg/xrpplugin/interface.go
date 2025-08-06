@@ -31,3 +31,9 @@ type HTMLPlugin interface {
 type XMLPlugin interface {
 	ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error
 }
+
+// GetPlugin is the standard function signature that all plugins should export.
+// This eliminates the need for complex reflection-based plugin loading.
+// Instead of exporting a plugin instance directly, plugins should export:
+//   func GetPlugin() xrpplugin.Plugin { return &MyPlugin{} }
+type GetPluginFunc func() Plugin

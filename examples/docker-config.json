@@ -11,7 +11,7 @@
       "plugins": [
         {
           "path": "./plugins/html_modifier.so",
-          "name": "HTMLModifierPlugin"
+          "name": "GetPlugin"
         }
       ]
     },
@@ -20,7 +20,7 @@
       "plugins": [
         {
           "path": "./plugins/xml_transformer.so", 
-          "name": "XMLTransformerPlugin"
+          "name": "GetPlugin"
         }
       ]
     }

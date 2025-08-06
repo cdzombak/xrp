@@ -392,3 +392,56 @@ func TestValidatePluginSecurity(t *testing.T) {
 func containsIgnoreCase(s, substr string) bool {
 	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
+
+// TestSimplifiedPluginLoading tests the new GetPlugin() approach
+func TestSimplifiedPluginLoading(t *testing.T) {
+	// Test the GetPlugin function validation
+	tests := []struct {
+		name        string
+		symbol      interface{}
+		expectError bool
+	}{
+		{
+			name: "valid GetPlugin function",
+			symbol: func() xrpPlugin.Plugin {
+				return &MockFullPlugin{}
+			},
+			expectError: false,
+		},
+		{
+			name: "invalid symbol type",
+			symbol: &MockFullPlugin{}, // Not a function
+			expectError: true,
+		},
+		{
+			name: "function with wrong signature",
+			symbol: func() string {
+				return "not a plugin"
+			},
+			expectError: true,
+		},
+		{
+			name: "GetPlugin returning nil",
+			symbol: func() xrpPlugin.Plugin {
+				return nil
+			},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test the type assertion logic directly
+			if getPluginFunc, ok := tt.symbol.(func() xrpPlugin.Plugin); ok {
+				plugin := getPluginFunc()
+				if plugin == nil && !tt.expectError {
+					t.Error("GetPlugin returned nil but expected valid plugin")
+				} else if plugin != nil && tt.expectError {
+					t.Error("Expected GetPlugin to fail but got valid plugin")
+				}
+			} else if !tt.expectError {
+				t.Error("Expected valid GetPlugin function but type assertion failed")
+			}
+		})
+	}
+}

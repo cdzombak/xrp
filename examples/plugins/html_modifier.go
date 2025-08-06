@@ -97,5 +97,8 @@ func addClassToParagraphs(node *html.Node) {
 	}
 }
 
-// HTMLModifierPlugin is the plugin instance that will be looked up
-var HTMLModifierPlugin = HTMLModifier{}
+// GetPlugin returns a new instance of the HTML modifier plugin.
+// This is the standard plugin export function that XRP will look for.
+func GetPlugin() xrpplugin.Plugin {
+	return &HTMLModifier{}
+}

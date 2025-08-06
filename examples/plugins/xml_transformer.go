@@ -60,5 +60,8 @@ func transformTextContent(element *etree.Element) {
 	}
 }
 
-// XMLTransformerPlugin is the plugin instance that will be looked up
-var XMLTransformerPlugin = XMLTransformer{}
+// GetPlugin returns a new instance of the XML transformer plugin.
+// This is the standard plugin export function that XRP will look for.
+func GetPlugin() xrpplugin.Plugin {
+	return &XMLTransformer{}
+}
