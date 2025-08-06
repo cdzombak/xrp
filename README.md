@@ -8,7 +8,6 @@
 - **Redis caching**: Intelligent caching with HTTP compliance for configured MIME types
 - **HTML/XML processing**: Parse and modify HTML/XML content using Go's standard libraries
 - **Configuration hot-reload**: Reload configuration on SIGHUP signal
-- **Request/response headers**: Adds version and cache status headers to responses
 - **Cookie denylist**: Configurable cookie-based cache exclusion
 
 ## Quick Start

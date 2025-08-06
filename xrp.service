@@ -1,0 +1,42 @@
+[Unit]
+Description=XRP HTML/XML-aware reverse proxy
+Documentation=https://github.com/cdzombak/xrp
+After=network.target network-online.target
+Wants=network-online.target
+Requires=redis.service
+
+[Service]
+Type=simple
+User=xrp
+Group=xrp
+ExecStart=/usr/local/bin/xrp -config /etc/xrp/config.json
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+# Allow read access to config and plugins
+ReadWritePaths=/var/log/xrp
+ReadOnlyPaths=/etc/xrp
+ReadOnlyPaths=/opt/xrp/plugins
+
+# Limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
