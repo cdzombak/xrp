@@ -15,21 +15,19 @@ RUN if [ -f /xrp-go.mod ]; then \
         GO_VERSION=$(grep '^go ' /xrp-go.mod | cut -d' ' -f2 || echo "1.21"); \
         PLUGIN_NAME="minimal-plugin"; \
         # Create new go.mod with exact versions
-        cat > go.mod << EOF; \
-module ${PLUGIN_NAME}
-
-go ${GO_VERSION}
-
-require (
-EOF; \
-        # Add XRP dependency (will be replaced with local source)
-        echo "    github.com/cdzombak/xrp v0.0.0-00010101000000-000000000000" >> go.mod; \
-        # Extract and add other dependencies from XRP's go.mod
-        grep -E '^[[:space:]]*github\.com/beevik/etree|^[[:space:]]*golang\.org/x/net' /xrp-go.mod | sed 's/^[[:space:]]*/    /' >> go.mod || true; \
-        echo ")" >> go.mod; \
-        echo "" >> go.mod; \
-        # Replace XRP dependency with local source
-        echo "replace github.com/cdzombak/xrp => /xrp-source" >> go.mod; \
+        { \
+            echo "module ${PLUGIN_NAME}"; \
+            echo ""; \
+            echo "go ${GO_VERSION}"; \
+            echo ""; \
+            echo "require ("; \
+            echo "    github.com/cdzombak/xrp v0.0.0-00010101000000-000000000000"; \
+            # Extract and add other dependencies from XRP's go.mod
+            grep -E '^[[:space:]]*github\.com/beevik/etree|^[[:space:]]*golang\.org/x/net' /xrp-go.mod | sed 's/^[[:space:]]*/    /' || true; \
+            echo ")"; \
+            echo ""; \
+            echo "replace github.com/cdzombak/xrp => /xrp-source"; \
+        } > go.mod; \
         echo "Generated go.mod:"; \
         cat go.mod; \
     else \
