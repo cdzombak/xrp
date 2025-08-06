@@ -76,6 +76,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -113,6 +114,10 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:latest
           build-args: |
             XRP_VERSION=${{ steps.version.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=XRP Plugin Builder Image
+            org.opencontainers.image.licenses=Apache-2.0
 
   # Step 2: Build multi-platform binaries using the builder image
   build-binaries:
@@ -204,6 +209,10 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
             VERSION=${{ needs.build-builder.outputs.version }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=XRP HTML/XML-aware Reverse Proxy
+            org.opencontainers.image.licenses=Apache-2.0
 
   # Step 4: Create GitHub Release (semver tags only)
   release:
