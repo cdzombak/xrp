@@ -1,11 +1,10 @@
-name: Build and Release
+name:  CI
 
 on:
   push:
     branches: [main]
     tags: ['v*']
   pull_request:
-    branches: [main]
 
 env:
   REGISTRY: ghcr.io
@@ -13,63 +12,129 @@ env:
   BUILDER_IMAGE_NAME: cdzombak/xrp-builder
 
 jobs:
-  # For PRs and non-main branches: local Docker builds only (fast feedback)
-  pr-build:
-    name: PR Build (Local)
+  test-go:
+    name: Go Tests
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/v'))
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.7.0
+        with:
+          redis-version: '7'
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+
+  test-docker-build:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
-      - name: Build builder image locally
+
+      - name: Test builder image build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: build/docker/Dockerfile.builder
           platforms: linux/amd64
           build-args: |
-            XRP_VERSION=dev
-          tags: ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:dev
+            XRP_VERSION=test
+          tags: ghcr.io/cdzombak/xrp-builder:test
           load: true
-      
-      - name: Build and test XRP image locally
+
+      - name: Test XRP image build
         run: |
-          # Use default docker context for local images
+          # Use default docker context to access locally built images
           docker context use default
-          
-          # Build XRP image using locally built builder
+
+          # Build XRP image using locally built builder image
           docker buildx build \
             --builder default \
             --platform linux/amd64 \
-            --build-arg VERSION=dev \
+            --build-arg VERSION=test \
             --target test \
             --load \
             -f build/docker/Dockerfile.xrp \
             .
-      
+
+  test-plugin-sdk:
+    name: Test Plugin SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build XRP builder image first
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: build/docker/Dockerfile.builder
+          platforms: linux/amd64
+          build-args: |
+            XRP_VERSION=test
+          tags: ghcr.io/cdzombak/xrp-builder:test
+          load: true
+
       - name: Build binary locally
         run: |
           # Build single binary for validation
           docker buildx build \
             --builder default \
             --platform linux/amd64 \
-            --build-arg VERSION=dev \
+            --build-arg VERSION=test \
             --target binary \
             --output type=local,dest=./dist \
             -f build/docker/Dockerfile.xrp \
             .
-          
+
           # Verify binary was created
           ls -la dist/xrp
           ./dist/xrp --version
 
+      - name: Test minimal plugin build with XRP SDK
+        working-directory: build/sdk/examples/minimal
+        run: |
+          # Use default docker context to access locally built images
+          docker context use default
+
+          # Build using existing Dockerfile with XRP builder image (single platform, local only)
+          docker buildx build \
+            --builder default \
+            --platform linux/amd64 \
+            --build-arg XRP_VERSION=test \
+            --target output \
+            --output type=local,dest=./dist \
+            .
+
+          # Verify the plugin was built
+          ls -la dist/plugin.so
+
+
   # For main branch and tags: full build and push workflow
   # Step 1: Build and push builder image first
   build-builder:
+    needs: [test-go]
     name: Build and Push Builder Image
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
@@ -223,7 +288,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build-builder, build-binaries, build-images]
+    needs: [test-go, test-docker-build, test-plugin-sdk, build-builder, build-binaries, build-images]
     if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
     permissions:
       contents: write
