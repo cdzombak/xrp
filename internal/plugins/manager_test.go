@@ -3,6 +3,9 @@ package plugins
 import (
 	"context"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.org/x/net/html"
@@ -252,4 +255,140 @@ func TestPluginReceivesURL(t *testing.T) {
 	} else if urlCapturingPlugin.CapturedURL.String() != testURL.String() {
 		t.Errorf("expected URL %s, got %s", testURL.String(), urlCapturingPlugin.CapturedURL.String())
 	}
+}
+
+func TestValidatePluginSecurity(t *testing.T) {
+	manager := &Manager{}
+
+	// Create a plugins directory in temp for testing
+	tempDir := t.TempDir()
+	pluginsDir := filepath.Join(tempDir, "plugins")
+	if err := os.MkdirAll(pluginsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Change to temp directory to make relative paths work
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir)
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name        string
+		setupFile   func() string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "valid plugin file",
+			setupFile: func() string {
+				path := filepath.Join("plugins", "valid_plugin.so")
+				file, err := os.Create(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				file.Close()
+				
+				// Set proper permissions (not world-writable)
+				if err := os.Chmod(path, 0644); err != nil {
+					t.Fatal(err)
+				}
+				return path
+			},
+			expectError: false,
+		},
+		{
+			name: "world-writable plugin file",
+			setupFile: func() string {
+				path := filepath.Join("plugins", "writable_plugin.so")
+				file, err := os.Create(path)
+				if err != nil {
+					t.Fatal(err)
+				}
+				file.Close()
+				
+				// Set world-writable permissions
+				if err := os.Chmod(path, 0666); err != nil {
+					t.Fatal(err)
+				}
+				return path
+			},
+			expectError: true,
+			errorMsg:    "world-writable",
+		},
+		{
+			name: "symlink to plugin file",
+			setupFile: func() string {
+				// Create target file with absolute path
+				targetPath := filepath.Join("plugins", "target_plugin.so")
+				file, err := os.Create(targetPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+				file.Close()
+				
+				// Create symlink with absolute target path
+				symlinkPath := filepath.Join("plugins", "symlink_plugin.so")
+				absTargetPath, _ := filepath.Abs(targetPath)
+				if err := os.Symlink(absTargetPath, symlinkPath); err != nil {
+					t.Skip("Cannot create symlink for test")
+				}
+				return symlinkPath
+			},
+			expectError: true,
+			errorMsg:    "cannot be a symlink",
+		},
+		{
+			name: "nonexistent plugin file",
+			setupFile: func() string {
+				return filepath.Join("plugins", "nonexistent.so")
+			},
+			expectError: true,
+			errorMsg:    "no such file",
+		},
+		{
+			name: "plugin outside allowed directory",
+			setupFile: func() string {
+				// Create file in /tmp (outside allowed dirs)
+				path := filepath.Join("/tmp", "outside_plugin.so")
+				file, err := os.Create(path)
+				if err != nil {
+					t.Skip("cannot create temp file for test")
+				}
+				file.Close()
+				t.Cleanup(func() {
+					os.Remove(path)
+				})
+				return path
+			},
+			expectError: true,
+			errorMsg:    "not in allowed directories",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pluginPath := tt.setupFile()
+			
+			err := manager.validatePluginSecurity(pluginPath)
+			
+			if tt.expectError {
+				if err == nil {
+					t.Error("expected error but got none")
+				} else if tt.errorMsg != "" && !containsIgnoreCase(err.Error(), tt.errorMsg) {
+					t.Errorf("expected error to contain '%s', got '%s'", tt.errorMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+// Helper function for case-insensitive string matching
+func containsIgnoreCase(s, substr string) bool {
+	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }
