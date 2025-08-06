@@ -63,15 +63,19 @@ jobs:
           load: true
 
       - name: Test XRP image build
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: build/docker/Dockerfile.xrp
-          platforms: linux/amd64
-          build-args: |
-            VERSION=test
-          target: test
-          load: true
+        run: |
+          # Use default docker context to access locally built images
+          docker context use default
+          
+          # Build XRP image using locally built builder image
+          docker buildx build \
+            --builder default \
+            --platform linux/amd64 \
+            --build-arg VERSION=test \
+            --target test \
+            --load \
+            -f build/docker/Dockerfile.xrp \
+            .
 
   test-plugin-sdk:
     name: Test Plugin SDK
