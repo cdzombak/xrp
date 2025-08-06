@@ -1,0 +1,22 @@
+{
+  "backend_url": "https://api.example.com",
+  "redis": {
+    "addr": "redis:6379",
+    "password": "",
+    "db": 0
+  },
+  "mime_types": [
+    {
+      "mime_type": "text/html",
+      "plugins": [
+        {
+          "path": "/app/plugins/html_modifier.so",
+          "name": "HTMLModifierPlugin"
+        }
+      ]
+    }
+  ],
+  "cookie_denylist": ["session", "auth"],
+  "request_timeout": 30,
+  "max_response_size_mb": 10
+}
