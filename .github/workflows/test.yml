@@ -97,8 +97,12 @@ jobs:
       - name: Test minimal plugin build with XRP SDK
         working-directory: build/sdk/examples/minimal
         run: |
+          # Use default docker context to access locally built images
+          docker context use default
+          
           # Build using existing Dockerfile with XRP builder image (single platform, local only)
           docker buildx build \
+            --builder default \
             --platform linux/amd64 \
             --build-arg XRP_VERSION=test \
             --target output \
