@@ -117,7 +117,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP Plugin Builder Image
-            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.licenses=MIT
 
   # Step 2: Build multi-platform binaries using the builder image
   build-binaries:
@@ -212,7 +212,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP HTML/XML-aware Reverse Proxy
-            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.licenses=MIT
 
   # Step 4: Create GitHub Release (semver tags only)
   release:
