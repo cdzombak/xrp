@@ -1,0 +1,101 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-go:
+    name: Go Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21.6'
+      
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.7.0
+        with:
+          redis-version: '7'
+      
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
+
+  test-docker-build:
+    name: Test Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Test builder image build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/docker/Dockerfile.builder
+          platforms: linux/amd64
+          build-args: |
+            XRP_VERSION=test
+          cache-from: type=gha,scope=test-builder
+          cache-to: type=gha,mode=max,scope=test-builder
+      
+      - name: Test XRP image build
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/docker/Dockerfile.xrp
+          platforms: linux/amd64
+          target: test
+          cache-from: type=gha,scope=test-xrp
+          cache-to: type=gha,mode=max,scope=test-xrp
+
+  test-plugin-sdk:
+    name: Test Plugin SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Test minimal plugin build
+        working-directory: build/sdk/examples/minimal
+        run: |
+          # Create a proper Dockerfile for the minimal example
+          cat > Dockerfile << 'EOF'
+          FROM golang:1.21.6 AS builder
+          WORKDIR /plugin
+          COPY go.mod go.sum* ./
+          RUN go mod download
+          COPY . .
+          RUN go build -buildmode=plugin -o plugin.so .
+          
+          FROM scratch AS output
+          COPY --from=builder /plugin/plugin.so /plugin.so
+          EOF
+          
+          # Build the plugin
+          docker buildx build \
+            --target output \
+            --output type=local,dest=./dist \
+            .
+          
+          # Verify the plugin was built
+          ls -la dist/plugin.so

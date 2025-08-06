@@ -1,0 +1,254 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: cdzombak/xrp
+
+jobs:
+  # Stage 1: Build binaries for all platforms
+  build-binaries:
+    name: Build Binaries
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+          - platform: linux/arm64
+            arch: arm64
+          - platform: linux/arm/v7
+            arch: arm
+            variant: v7
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build binary
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/docker/Dockerfile.xrp
+          platforms: ${{ matrix.platform }}
+          target: binary
+          outputs: type=local,dest=./dist
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            TARGETARCH=${{ matrix.arch }}
+            TARGETVARIANT=${{ matrix.variant }}
+          cache-from: type=gha,scope=binary-${{ matrix.arch }}${{ matrix.variant }}
+          cache-to: type=gha,mode=max,scope=binary-${{ matrix.arch }}${{ matrix.variant }}
+      
+      - name: Rename binary
+        run: |
+          mv dist/xrp dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
+      
+      - name: Upload binary
+        uses: actions/upload-artifact@v3
+        with:
+          name: xrp-${{ matrix.arch }}${{ matrix.variant }}
+          path: dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
+
+  # Stage 2: Run tests
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Run tests in Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/docker/Dockerfile.xrp
+          target: test
+          cache-from: type=gha,scope=test
+          cache-to: type=gha,mode=max,scope=test
+
+  # Stage 3: Build Docker images (but don't push yet)
+  build-images:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-binaries, test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build multi-platform image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/docker/Dockerfile.xrp
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          target: runtime
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }}
+          cache-from: type=gha,scope=runtime
+          cache-to: type=gha,mode=max,scope=runtime
+          outputs: type=docker,dest=./xrp-image.tar
+
+      - name: Upload Docker image
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image
+          path: xrp-image.tar
+          retention-days: 1
+
+  # Stage 4: Push images (only on tags/main)
+  push-images:
+    name: Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-images]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Download Docker image
+        uses: actions/download-artifact@v3
+        with:
+          name: docker-image
+      
+      - name: Load and push image
+        run: |
+          docker load < xrp-image.tar
+          
+          # Determine tags
+          if [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }} \
+                       ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }} \
+                       ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION}
+            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          else
+            docker tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:build-${{ github.sha }} \
+                       ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+            docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main
+          fi
+
+  # Stage 5: Build and push builder image (only on tags)
+  push-builder:
+    name: Push Builder Image
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build and push builder image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: build/docker/Dockerfile.builder
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/builder:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/builder:latest
+          build-args: |
+            XRP_VERSION=${{ github.ref_name }}
+          cache-from: type=gha,scope=builder
+          cache-to: type=gha,mode=max,scope=builder
+
+  # Stage 6: Create GitHub Release with artifacts
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: [build-binaries, push-images, push-builder]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts/
+      
+      - name: Prepare release artifacts
+        run: |
+          mkdir release
+          
+          # Copy binaries
+          for dir in artifacts/xrp-*; do
+            if [ -d "$dir" ]; then
+              cp "$dir"/* release/
+            fi
+          done
+          
+          # Create compatibility.json
+          cat > release/compatibility.json << EOF
+          {
+            "xrp_version": "${{ github.ref_name }}",
+            "builder_image": "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/builder:${{ github.ref_name }}",
+            "go_version": "1.21.6",
+            "supported_platforms": ["linux/amd64", "linux/arm64", "linux/arm/v7"],
+            "plugin_interface": {
+              "package": "github.com/cdzombak/xrp/pkg/xrpplugin",
+              "version": "${{ github.ref_name }}"
+            },
+            "build_requirements": {
+              "cgo_enabled": true,
+              "debian_base": "bookworm-slim",
+              "gcc_version": "12.2.0"
+            }
+          }
+          EOF
+          
+          # Package SDK
+          tar czf release/xrp-plugin-sdk.tar.gz -C build/sdk .
+          
+          # Create checksums
+          cd release
+          sha256sum * > checksums.txt
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}

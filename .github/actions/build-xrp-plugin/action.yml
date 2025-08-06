@@ -1,0 +1,73 @@
+name: 'Build XRP Plugin'
+description: 'Build XRP plugin for multiple architectures'
+author: 'cdzombak'
+
+inputs:
+  xrp-version:
+    description: 'XRP version to build against'
+    required: true
+    default: 'v1.0.0'
+  platforms:
+    description: 'Target platforms'
+    required: false
+    default: 'linux/amd64,linux/arm64,linux/arm/v7'
+  plugin-name:
+    description: 'Plugin name (defaults to repository name)'
+    required: false
+  dockerfile:
+    description: 'Path to Dockerfile'
+    required: false
+    default: './Dockerfile'
+  output-dir:
+    description: 'Output directory for built plugins'
+    required: false
+    default: './dist'
+
+outputs:
+  plugin-files:
+    description: 'List of built plugin files'
+    value: ${{ steps.build.outputs.files }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Determine plugin name
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.plugin-name }}" ]; then
+          echo "PLUGIN_NAME=${{ inputs.plugin-name }}" >> $GITHUB_ENV
+        else
+          echo "PLUGIN_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+        fi
+    
+    - name: Build plugin
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ${{ inputs.dockerfile }}
+        platforms: ${{ inputs.platforms }}
+        build-args: |
+          XRP_VERSION=${{ inputs.xrp-version }}
+        outputs: type=local,dest=${{ inputs.output-dir }}
+        cache-from: type=gha,scope=plugin-${{ env.PLUGIN_NAME }}
+        cache-to: type=gha,mode=max,scope=plugin-${{ env.PLUGIN_NAME }}
+    
+    - name: List built files
+      shell: bash
+      run: |
+        echo "Built plugin files:"
+        find "${{ inputs.output-dir }}" -name "*.so" -type f -exec ls -la {} \;
+        
+        # Set output
+        files=$(find "${{ inputs.output-dir }}" -name "*.so" -type f | tr '\n' ' ')
+        echo "files=$files" >> $GITHUB_OUTPUT
+      env:
+        GITHUB_OUTPUT: ${{ github.output }}
+
+branding:
+  icon: 'package'
+  color: 'blue'
