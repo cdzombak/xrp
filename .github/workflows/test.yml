@@ -59,6 +59,8 @@ jobs:
           platforms: linux/amd64
           build-args: |
             XRP_VERSION=test
+          tags: ghcr.io/cdzombak/xrp-builder:test
+          load: true
           cache-from: type=gha,scope=test-builder
           cache-to: type=gha,mode=max,scope=test-builder
 
@@ -68,6 +70,8 @@ jobs:
           context: .
           file: build/docker/Dockerfile.xrp
           platforms: linux/amd64
+          build-args: |
+            VERSION=test
           target: test
           cache-from: type=gha,scope=test-xrp
           cache-to: type=gha,mode=max,scope=test-xrp
