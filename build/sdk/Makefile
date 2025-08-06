@@ -10,21 +10,23 @@ PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 
 .PHONY: build
 build:
-	@echo "Building $(PLUGIN_NAME) plugin for XRP $(XRP_VERSION)"
+	@echo "Building $(PLUGIN_NAME) plugin for XRP $(XRP_VERSION) with exact dependency versions"
 	docker buildx build \
 		--platform $(PLATFORMS) \
 		--build-arg XRP_VERSION=$(XRP_VERSION) \
 		--output type=local,dest=./dist \
 		--target output \
+		-f ../docker/Dockerfile.plugin-template \
 		.
 
 .PHONY: build-single
 build-single:
-	@echo "Building $(PLUGIN_NAME) plugin for current platform"
+	@echo "Building $(PLUGIN_NAME) plugin for current platform with exact dependency versions"
 	docker buildx build \
 		--build-arg XRP_VERSION=$(XRP_VERSION) \
 		--output type=local,dest=./dist \
 		--target output \
+		-f ../docker/Dockerfile.plugin-template \
 		.
 
 .PHONY: test
