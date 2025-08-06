@@ -107,7 +107,7 @@ jobs:
         with:
           context: .
           file: build/docker/Dockerfile.builder
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:${{ steps.version.outputs.version }}
