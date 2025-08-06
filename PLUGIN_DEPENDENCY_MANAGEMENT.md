@@ -79,13 +79,3 @@ These use local XRP dependencies and are built for development/testing.
 3. **Multi-Platform**: Supports linux/amd64, linux/arm64, linux/arm/v7
 4. **Version Isolation**: Different XRP versions can coexist
 5. **CI/CD Ready**: Deterministic builds for automated systems
-
-## Migration
-
-Existing plugins can migrate by:
-
-1. Copy the SDK Makefile template
-2. Add a Dockerfile (use `build/sdk/examples/minimal/Dockerfile` as template)
-3. Update build scripts to use `make build XRP_VERSION=<target-version>`
-
-The old `go build -buildmode=plugin` approach will continue to work for development but may have version inconsistencies in production.

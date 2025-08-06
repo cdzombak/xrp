@@ -1,4 +1,5 @@
-FROM ghcr.io/cdzombak/xrp/builder:latest AS builder
+ARG BUILDER_VERSION=latest
+FROM ghcr.io/cdzombak/xrp/builder:${BUILDER_VERSION} AS builder
 
 ARG XRP_VERSION=latest
 WORKDIR /workspace
