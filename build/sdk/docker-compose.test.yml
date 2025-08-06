@@ -1,0 +1,31 @@
+# Docker Compose test environment for plugin development
+# Copy this to your plugin repository for local testing
+
+version: '3.8'
+
+services:
+  backend:
+    image: nginx:alpine
+    volumes:
+      - ./test-content:/usr/share/nginx/html:ro
+    ports:
+      - "8081:80"
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  xrp:
+    image: ghcr.io/cdzombak/xrp:${XRP_VERSION:-v1.0.0}
+    depends_on:
+      - backend
+      - redis
+    volumes:
+      - ./dist:/plugins:ro
+      - ./test-config.json:/config.json:ro
+    command: ["-config", "/config.json"]
+    ports:
+      - "8080:8080"
+    environment:
+      - XRP_LOG_LEVEL=debug

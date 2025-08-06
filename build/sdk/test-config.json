@@ -1,0 +1,22 @@
+{
+  "backend_url": "http://backend",
+  "redis": {
+    "addr": "redis:6379",
+    "password": "",
+    "db": 0
+  },
+  "mime_types": [
+    {
+      "mime_type": "text/html",
+      "plugins": [
+        {
+          "path": "/plugins/plugin.so",
+          "name": "GetPlugin"
+        }
+      ]
+    }
+  ],
+  "cookie_denylist": [],
+  "request_timeout": 30,
+  "max_response_size_mb": 10
+}
