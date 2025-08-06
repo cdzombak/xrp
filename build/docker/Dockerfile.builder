@@ -1,18 +1,18 @@
 FROM debian:bookworm-slim AS builder-base
 
 ARG XRP_VERSION=development
-ARG GO_VERSION=1.21.6
+ARG GO_VERSION=1.24.5
 
 # Install dependencies with pinned versions
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc=4:12.2.0-3 \
     g++=4:12.2.0-3 \
-    libc6-dev=2.36-9+deb12u3 \
+    libc6-dev=2.36-9+deb12u10 \
     make=4.3-4.1 \
-    git=1:2.39.2-1.1 \
+    git=1:2.39.5-0+deb12u2 \
     ca-certificates=20230311 \
-    wget=1.21.3-1 \
-    curl=7.88.1-10+deb12u4 \
+    wget=1.21.3-1+deb12u1 \
+    curl=7.88.1-10+deb12u12 \
     jq=1.6-2.1 \
     && rm -rf /var/lib/apt/lists/*
 

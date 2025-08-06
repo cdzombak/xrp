@@ -34,7 +34,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Build binary
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: build/docker/Dockerfile.xrp
@@ -53,7 +53,7 @@ jobs:
           mv dist/xrp dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
       
       - name: Upload binary
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: xrp-${{ matrix.arch }}${{ matrix.variant }}
           path: dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
@@ -70,7 +70,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Run tests in Docker
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: build/docker/Dockerfile.xrp
@@ -91,7 +91,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Build multi-platform image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: build/docker/Dockerfile.xrp
@@ -104,7 +104,7 @@ jobs:
           outputs: type=docker,dest=./xrp-image.tar
 
       - name: Upload Docker image
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image
           path: xrp-image.tar
@@ -131,7 +131,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Download Docker image
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
         with:
           name: docker-image
       
@@ -177,7 +177,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Build and push builder image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: build/docker/Dockerfile.builder
@@ -204,7 +204,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Download all binary artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v5
         with:
           path: artifacts/
       
@@ -246,7 +246,7 @@ jobs:
           sha256sum * > checksums.txt
       
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: release/*
           generate_release_notes: true
