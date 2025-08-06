@@ -273,6 +273,9 @@ func (p *Proxy) serveCachedResponse(w http.ResponseWriter, entry *cache.Entry) {
 		}
 	}
 	
+	// Update Content-Length to match the actual cached body length
+	w.Header().Set("Content-Length", strconv.Itoa(len(entry.Body)))
+	
 	// Add XRP headers for cached responses
 	w.Header().Set("X-XRP-Version", p.version)
 	w.Header().Set("X-XRP-Cache", "HIT")
