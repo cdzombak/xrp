@@ -1,0 +1,42 @@
+# Build artifacts
+xrp
+dist/
+coverage.out
+coverage.html
+*.tar
+
+# Development files
+.git/
+.github/
+*.md
+!BUILD.md
+Makefile
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test and temporary files
+tmp/
+temp/
+test-*/
+
+# Plugin build artifacts
+examples/plugins/*.so
+
+# Docker artifacts
+.dockerignore
+docker-compose*.yml
+!docker-compose.test.yml
+
+# Documentation (except BUILD.md which containers may need)
+*.md
+!BUILD.md
+
+# System files
+.DS_Store
+Thumbs.db

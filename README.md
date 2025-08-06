@@ -9,6 +9,8 @@
 - **HTML/XML processing**: Parse and modify HTML/XML content using Go's standard libraries
 - **Configuration hot-reload**: Reload configuration on SIGHUP signal
 - **Cookie denylist**: Configurable cookie-based cache exclusion
+- **Multi-architecture support**: Docker builds for linux/amd64, linux/arm64, linux/arm/v7
+- **Plugin SDK**: Complete toolkit for external plugin development
 
 ## Quick Start
 
@@ -19,6 +21,7 @@
 
 ### Building
 
+#### Traditional Go Build
 ```bash
 # Clone and build
 git clone <repository-url>
@@ -28,6 +31,20 @@ make build
 # Or just use go build
 go build -o xrp .
 ```
+
+#### Docker Multi-Architecture Build
+```bash
+# Build for all supported platforms
+make build-binaries
+
+# Build Docker image
+make build-image
+
+# Complete CI workflow locally
+make ci-local
+```
+
+For detailed build instructions, see [BUILD.md](BUILD.md).
 
 ### Configuration
 
@@ -94,7 +111,25 @@ make build
 
 ## Plugin Development
 
-Plugins must implement the `Plugin` interface from `xrp/pkg/xrpplugin`:
+### For External Plugin Authors
+
+Download the Plugin SDK and follow the quick start guide:
+
+```bash
+# Download SDK
+curl -L https://github.com/cdzombak/xrp/releases/latest/download/xrp-plugin-sdk.tar.gz | tar xz
+
+# Copy templates to your plugin repository
+cp xrp-plugin-sdk/Dockerfile.plugin ./Dockerfile
+cp xrp-plugin-sdk/Makefile ./Makefile
+
+# Build your plugin
+make build XRP_VERSION=v1.0.0
+```
+
+### Plugin Interface
+
+Plugins must implement the `Plugin` interface and export a `GetPlugin()` function:
 
 ```go
 package main
@@ -104,7 +139,7 @@ import (
     "net/url"
     "golang.org/x/net/html"
     "github.com/beevik/etree"
-    "xrp/pkg/xrpplugin"
+    "github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
 type MyPlugin struct{}
@@ -119,15 +154,26 @@ func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.
     return nil
 }
 
-// Export the plugin instance (struct value, not pointer)
-var MyPluginInstance = MyPlugin{}
+// Export the plugin
+func GetPlugin() xrpplugin.Plugin {
+    return &MyPlugin{}
+}
 ```
 
-Build plugins as shared libraries:
+### Building Plugins
 
+#### With Plugin SDK (Recommended)
+```bash
+make build XRP_VERSION=v1.0.0  # Multi-arch build
+make test                      # Test compatibility
+```
+
+#### Traditional Build
 ```bash
 go build -buildmode=plugin -o my_plugin.so my_plugin.go
 ```
+
+For complete plugin development guide, see [BUILD.md](BUILD.md#for-plugin-authors).
 
 ## Response Headers
 
