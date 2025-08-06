@@ -1,9 +1,8 @@
 # This Dockerfile uses the XRP plugin build template
 # It will automatically use exact dependency versions from the specified XRP release
 
-FROM ghcr.io/cdzombak/xrp/builder:latest AS builder
-
 ARG XRP_VERSION=latest
+FROM ghcr.io/cdzombak/xrp-builder:${XRP_VERSION} AS builder
 WORKDIR /workspace
 
 # Copy plugin source
@@ -23,12 +22,13 @@ go ${GO_VERSION}
 
 require (
 EOF; \
-        # Add XRP plugin interface dependency
-        echo "    github.com/cdzombak/xrp v0.0.0" >> go.mod; \
+        # Add XRP dependency (will be replaced with local source)
+        echo "    github.com/cdzombak/xrp v0.0.0-00010101000000-000000000000" >> go.mod; \
         # Extract and add other dependencies from XRP's go.mod
         grep -E '^[[:space:]]*github\.com/beevik/etree|^[[:space:]]*golang\.org/x/net' /xrp-go.mod | sed 's/^[[:space:]]*/    /' >> go.mod || true; \
         echo ")" >> go.mod; \
         echo "" >> go.mod; \
+        # Replace XRP dependency with local source
         echo "replace github.com/cdzombak/xrp => /xrp-source" >> go.mod; \
         echo "Generated go.mod:"; \
         cat go.mod; \

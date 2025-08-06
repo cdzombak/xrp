@@ -1,7 +1,7 @@
 # Plugin Dockerfile template for external plugin authors
 # Copy this to your plugin repository and customize as needed
 
-ARG XRP_VERSION=v1.0.0
+ARG XRP_VERSION=latest
 FROM ghcr.io/cdzombak/xrp-builder:${XRP_VERSION} AS builder
 
 # Set working directory for plugin build
