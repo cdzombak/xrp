@@ -1,0 +1,35 @@
+ARG BUILDER_VERSION=latest
+FROM ghcr.io/cdzombak/xrp/builder:${BUILDER_VERSION} AS builder
+
+WORKDIR /workspace
+
+# Copy dependency files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
+
+# Copy source code
+COPY . .
+
+# Build for target architecture
+ARG TARGETARCH
+ARG TARGETVARIANT
+ARG VERSION=development
+RUN GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT} \
+    go build -ldflags="-s -w -X main.version=${VERSION}" -o xrp .
+
+# Test stage (optional)
+FROM builder AS test
+RUN go test -v ./...
+
+# Export stage - just the binary
+FROM scratch AS binary
+COPY --from=builder /workspace/xrp /xrp
+
+# Runtime stage - full container image
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /workspace/xrp /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/xrp"]
