@@ -9,8 +9,6 @@ import (
 
 	"golang.org/x/net/html"
 	"github.com/beevik/etree"
-
-	"github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
 // MinimalPlugin implements the XRP plugin interface
