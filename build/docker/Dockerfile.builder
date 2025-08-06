@@ -26,8 +26,8 @@ ENV CGO_ENABLED=1
 ENV XRP_VERSION=${XRP_VERSION}
 
 # Extract exact dependency versions and source from XRP release
-RUN if [ "${XRP_VERSION}" != "development" ]; then \
-        echo "Extracting dependency versions and source from XRP ${XRP_VERSION}"; \
+RUN if echo "${XRP_VERSION}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+'; then \
+        echo "Extracting dependency versions and source from XRP release ${XRP_VERSION}"; \
         wget -q https://github.com/cdzombak/xrp/archive/${XRP_VERSION}.tar.gz && \
         tar -xzf ${XRP_VERSION}.tar.gz && \
         cp xrp-*/go.mod /xrp-go.mod && \
@@ -37,13 +37,13 @@ RUN if [ "${XRP_VERSION}" != "development" ]; then \
         cp -r xrp-*/* /xrp-source/ && \
         rm -rf xrp-* ${XRP_VERSION}.tar.gz; \
     else \
-        echo "Development version - using local XRP source if available"; \
+        echo "Development version (${XRP_VERSION}) - using local XRP source if available"; \
         touch /xrp-go.mod /xrp-go.sum; \
         mkdir -p /xrp-source; \
     fi
 
 # Pre-download XRP plugin interface if available
-RUN if [ "${XRP_VERSION}" != "development" ]; then \
+RUN if echo "${XRP_VERSION}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+'; then \
         go install github.com/cdzombak/xrp/pkg/xrpplugin@${XRP_VERSION} || \
         echo "Warning: Could not pre-install XRP plugin interface"; \
     fi

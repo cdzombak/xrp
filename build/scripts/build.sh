@@ -2,18 +2,17 @@
 # XRP multi-architecture build script
 
 set -euo pipefail
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-# Configuration
 REGISTRY="${REGISTRY:-ghcr.io}"
 IMAGE_NAME="${IMAGE_NAME:-cdzombak/xrp}"
-VERSION="${VERSION:-$(git describe --tags --always --dirty)}"
+VERSION="${VERSION:-$("$SCRIPT_DIR"/../../.version.sh)}"
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64,linux/arm/v7}"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
 log() {
     echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S')] $1${NC}"
@@ -134,7 +133,6 @@ usage() {
     echo "  all         Build everything (binaries, test, image)"
     echo ""
     echo "Options:"
-    echo "  --push      Push images to registry (requires PUSH=true)"
     echo "  --version   Set version (default: git describe)"
     echo "  --platforms Set target platforms (default: $PLATFORMS)"
     echo ""
