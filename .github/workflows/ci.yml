@@ -17,6 +17,8 @@ jobs:
   test-go:
     name: Go Tests
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,6 +46,8 @@ jobs:
   test-docker-build:
     name: Test Docker Build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -80,6 +84,8 @@ jobs:
   test-plugin-sdk:
     name: Test Plugin SDK
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -135,6 +141,8 @@ jobs:
   lint:
     name: Lint/Go
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -154,6 +162,8 @@ jobs:
   actionlint:
     name: Lint/Actionlint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -165,6 +175,8 @@ jobs:
   meta:
     name: Derive Build Metadata
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -244,6 +256,8 @@ jobs:
     name: Build Binaries & Debian Packages
     runs-on: ubuntu-latest
     needs: [ build-builder, meta ]
+    permissions:
+      contents: read
     strategy:
       matrix:
         include:
@@ -453,6 +467,8 @@ jobs:
     needs: [ meta, build-binaries ]
     if: needs.meta.outputs.is_release == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Download binaries & packages
         uses: actions/download-artifact@v5
@@ -497,6 +513,8 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     needs: [ test-go, test-docker-build, test-plugin-sdk, lint, meta, build-builder, build-binaries, build-images, release, aptly ]
+    permissions:
+      contents: read
     steps:
       - name: Send success notification
         uses: niniyas/ntfy-action@master
