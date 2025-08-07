@@ -69,7 +69,3 @@ ci/local: test/docker build/binaries build/image ## Run a complete local build +
 	@echo "✅ All builds completed successfully"
 	@echo "📦 Binaries in ./dist/"
 	@echo "🐳 Image tagged as $(REGISTRY)/$(IMAGE_NAME):$(VERSION)"
-
-#push-image: build-image
-#	PUSH=true REGISTRY=$(REGISTRY) IMAGE_NAME=$(IMAGE_NAME) VERSION=$(VERSION) PLATFORMS=$(PLATFORMS) \
-#		./build/scripts/build.sh image

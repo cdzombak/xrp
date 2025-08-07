@@ -1,11 +1,11 @@
-name:  CI
+name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ['v*.*.*']
+    branches: [ main ]
+    tags: [ 'v*.*.*' ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 env:
   REGISTRY: ghcr.io
@@ -132,11 +132,71 @@ jobs:
           # Verify the plugin was built
           ls -la dist/plugin.so
 
+  lint:
+    name: Lint/Go
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-  # For main branch and tags: full build and push workflow
-  # Step 1: Build and push builder image first
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+      - name: Run go vet
+        run: go vet ./...
+
+  actionlint:
+    name: Lint/Actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          files: ".github/workflows/*.yml"
+
+  meta:
+    name: Derive Build Metadata
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Derive version string
+        id: version
+        run: echo "version=$(./.version.sh)" >> "$GITHUB_OUTPUT"
+      - name: version
+        run: "echo version: ${{ steps.version.outputs.version }}"
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      aptly_repo_name: oss
+      aptly_dist: any
+      aptly_publish_prefix: s3:dist.cdzombak.net:deb_oss
+      is_prerelease: >-
+        ${{
+          startsWith(github.ref, 'refs/tags/v') &&
+            (contains(github.ref, '-alpha.')
+            || contains(github.ref, '-beta.')
+            || contains(github.ref, '-rc.'))
+        }}
+      is_release: >-
+        ${{
+          startsWith(github.ref, 'refs/tags/v') &&
+            !(contains(github.ref, '-alpha.')
+            || contains(github.ref, '-beta.')
+            || contains(github.ref, '-rc.'))
+        }}
+      is_pull_request: ${{ github.event_name == 'pull_request' }}
+
+  # For main branch and version tags: full build and push workflow
   build-builder:
-    needs: [test-go]
+    needs: [ test-go, meta ]
     name: Build and Push Builder Image
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
@@ -144,31 +204,20 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Determine version
-        id: version
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "version=main" >> $GITHUB_OUTPUT
-          fi
-      
+
       - name: Build and push builder image
         uses: docker/build-push-action@v6
         with:
@@ -177,16 +226,16 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:${{ needs.meta.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:latest
           build-args: |
-            XRP_VERSION=${{ steps.version.outputs.version }}
+            XRP_VERSION=${{ needs.meta.outputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP Plugin Builder Image
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.version=${{ steps.version.outputs.version }}
-            xrp.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.version=${{ needs.meta.outputs.version }}
+            xrp.version=${{ needs.meta.outputs.version }}
             go.version=1.24.5
             debian.version=bookworm
 
@@ -194,8 +243,7 @@ jobs:
   build-binaries:
     name: Build Binaries & Debian Packages
     runs-on: ubuntu-latest
-    needs: [build-builder]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [ build-builder, meta ]
     strategy:
       matrix:
         include:
@@ -212,10 +260,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Build binary using builder image
         uses: docker/build-push-action@v6
         with:
@@ -225,13 +273,19 @@ jobs:
           target: binary
           outputs: type=local,dest=./dist
           build-args: |
-            VERSION=${{ needs.build-builder.outputs.version }}
+            VERSION=${{ needs.meta.outputs.version }}
             TARGETARCH=${{ matrix.arch }}
             TARGETVARIANT=${{ matrix.variant }}
-      
+
       - name: Rename binary
         run: |
           mv dist/xrp dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: xrp-${{ matrix.arch }}${{ matrix.variant }}
+          path: dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -251,49 +305,42 @@ jobs:
             -a ${{ matrix.deb }} \
             -n xrp \
             -s dir \
-            --description "XRP HTML/XML-aware Reverse Proxy" \
+            --description "HTML/XML-aware reverse proxy" \
             --url "https://github.com/cdzombak/xrp" \
             --maintainer "Chris Dzombak <chris@dzombak.com>" \
             --license MIT \
             --vendor "Chris Dzombak" \
             ./dist/xrp-${{ matrix.arch }}${{ matrix.variant }}=/usr/bin/xrp
 
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: xrp-${{ matrix.arch }}${{ matrix.variant }}
-          path: dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
-      
       - name: Upload Debian package artifact
         if: matrix.deb
         uses: actions/upload-artifact@v4
         with:
-          name: xrp-${{ needs.build-builder.outputs.version }}-${{ matrix.deb }}.deb
-          path: dist/xrp-${{ needs.build-builder.outputs.version }}-${{ matrix.deb }}.deb
+          name: xrp-${{ needs.meta.outputs.version }}-${{ matrix.deb }}.deb
+          path: dist/xrp-${{ needs.meta.outputs.version }}-${{ matrix.deb }}.deb
 
   # Step 3: Build and push XRP Docker images using the builder image
   build-images:
     name: Build and Push XRP Images
     runs-on: ubuntu-latest
-    needs: [build-builder]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+    needs: [ build-builder, meta ]
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
-      - name: Log in to Container Registry
+
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Determine tags
         id: tags
         run: |
@@ -303,7 +350,7 @@ jobs:
           else
             echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main" >> $GITHUB_OUTPUT
           fi
-      
+
       - name: Build and push XRP images
         uses: docker/build-push-action@v6
         with:
@@ -314,30 +361,32 @@ jobs:
           push: true
           tags: ${{ steps.tags.outputs.tags }}
           build-args: |
-            VERSION=${{ needs.build-builder.outputs.version }}
+            VERSION=${{ needs.meta.outputs.version }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP HTML/XML-aware Reverse Proxy
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.version=${{ needs.build-builder.outputs.version }}
+            org.opencontainers.image.version=${{ needs.meta.outputs.version }}
 
   # Step 4: Create GitHub Release (semver tags only)
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [test-go, test-docker-build, test-plugin-sdk, build-builder, build-binaries, build-images]
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-')
+    needs: [ test-go, test-docker-build, test-plugin-sdk, build-builder, build-binaries, build-images, meta ]
+    if: >-
+      needs.meta.outputs.is_release == 'true' ||
+      needs.meta.outputs.is_prerelease == 'true'
     permissions:
       contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Download all binary artifacts
         uses: actions/download-artifact@v5
         with:
           path: artifacts/
-      
+
       - name: Prepare release artifacts
         run: |
           mkdir release
@@ -352,13 +401,13 @@ jobs:
           # Create compatibility.json
           cat > release/compatibility.json << EOF
           {
-            "xrp_version": "${{ needs.build-builder.outputs.version }}",
-            "builder_image": "${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:${{ needs.build-builder.outputs.version }}",
+            "xrp_version": "${{ needs.meta.outputs.version }}",
+            "builder_image": "${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:${{ needs.meta.outputs.version }}",
             "go_version": "$(grep '^go ' go.mod | cut -d' ' -f2)",
             "supported_platforms": ["linux/amd64", "linux/arm64", "linux/arm/v7"],
             "plugin_interface": {
               "package": "github.com/cdzombak/xrp/pkg/xrpplugin",
-              "version": "${{ needs.build-builder.outputs.version }}"
+              "version": "${{ needs.meta.outputs.version }}"
             },
             "build_requirements": {
               "cgo_enabled": true,
@@ -373,7 +422,7 @@ jobs:
           # Create checksums
           cd release
           sha256sum * > checksums.txt
-      
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -381,3 +430,94 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+
+  tags:
+    name: Update Release Tags
+    needs: [ meta, release ]
+    if: needs.meta.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Update running major/minor version tags
+        uses: sersoft-gmbh/running-release-tags-action@v3
+        with:
+          fail-on-non-semver-tag: true
+          create-release: false
+          update-full-release: false
+
+  aptly:
+    name: Aptly
+    needs: [ meta, build-binaries ]
+    if: needs.meta.outputs.is_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download binaries & packages
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.meta.outputs.bin_name }} Binary Artifacts
+          path: out
+      - name: List artifacts
+        run: ls -R
+        working-directory: out
+
+      - name: Login to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:github-actions
+
+      - name: Push to Aptly Repo
+        shell: bash
+        run: |
+          set -x
+          for DEB in out/*.deb; do
+            curl -u "${{ secrets.APTLY_CRED }}" \
+              -fsS -X POST \
+              -F file=@"${DEB}" \
+              "${{ secrets.APTLY_API }}/files/${{ needs.meta.outputs.bin_name }}-${{ needs.meta.outputs.version }}"
+          done
+          curl -u "${{ secrets.APTLY_CRED }}" \
+            -fsS -X POST \
+            "${{ secrets.APTLY_API }}/repos/${{ needs.meta.outputs.aptly_repo_name }}/file/${{ needs.meta.outputs.bin_name }}-${{ needs.meta.outputs.version }}?forceReplace=1"
+
+      - name: Update Published Aptly Repo
+        run: |
+          set -x
+          curl -u "${{ secrets.APTLY_CRED }}" \
+            -fsS -X PUT \
+            -H 'Content-Type: application/json' \
+            --data '{"ForceOverwrite": true}' \
+            "${{ secrets.APTLY_API }}/publish/${{ needs.meta.outputs.aptly_publish_prefix }}/${{ needs.meta.outputs.aptly_dist }}?_async=true"
+
+  ntfy:
+    name: Ntfy
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    needs: [ test-go, test-docker-build, test-plugin-sdk, meta, build-builder, build-binaries, build-images, release, aptly ]
+    steps:
+      - name: Send success notification
+        uses: niniyas/ntfy-action@master
+        if: ${{ !contains(needs.*.result, 'failure') && (needs.meta.outputs.is_release == 'true' || needs.meta.outputs.is_prerelease == 'true') }}
+        with:
+          url: "https://ntfy.cdzombak.net"
+          topic: "gha-builds"
+          priority: 3
+          headers: '{"authorization": "Bearer ${{ secrets.NTFY_TOKEN }}"}'
+          tags: white_check_mark
+          title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.version }} available
+          details: ${{ github.event.repository.name }} version ${{ needs.meta.outputs.version }} is now available.
+      - name: Send failure notification
+        uses: niniyas/ntfy-action@master
+        if: ${{ contains(needs.*.result, 'failure') }}
+        with:
+          url: "https://ntfy.cdzombak.net"
+          topic: "gha-builds"
+          priority: 3
+          headers: '{"authorization": "Bearer ${{ secrets.NTFY_TOKEN }}"}'
+          tags: no_entry
+          title: ${{ github.event.repository.name }} ${{ needs.meta.outputs.version }} build failed
+          details: Build failed for ${{ github.event.repository.name }} version ${{ needs.meta.outputs.version }}.
