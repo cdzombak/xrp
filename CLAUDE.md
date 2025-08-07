@@ -26,7 +26,6 @@ xrp/
 ### Quick Build
 ```bash
 go build .                      # Main binary
-make example-plugins           # Build example plugins
 ```
 
 ### Testing
@@ -42,42 +41,14 @@ timeout 30 docker compose build && timeout 30 docker compose up
 ```
 This starts Nginx (backend), Redis (cache), and XRP (proxy) with example plugins.
 
-## Plugin Development
+## Key Principles
 
-### Plugin Structure
-Plugins export struct values (not pointers) to avoid Go plugin system complexities:
+- **Use TDD**
 
-```go
-package main
-
-import (
-    "context"
-    "net/url"
-    "golang.org/x/net/html"
-    "github.com/beevik/etree"
-    "xrp/pkg/xrpplugin"
-)
-
-type MyPlugin struct{}
-
-func (p *MyPlugin) ProcessHTMLTree(ctx context.Context, url *url.URL, node *html.Node) error {
-    // Modify HTML tree in place
-    return nil
-}
-
-func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.Document) error {
-    // Modify XML document in place
-    return nil
-}
-
-// Export as struct value (not pointer)
-var MyPluginInstance = MyPlugin{}
-```
-
-### Building Plugins
-```bash
-go build -buildmode=plugin -o my_plugin.so my_plugin.go
-```
+### Error Handling
+- **Fail gracefully**: Plugin errors don't crash the proxy
+- **Validate early**: Catch configuration errors at startup
+- **Use structured logging**: `slog` with context throughout
 
 ## Key Implementation Details
 
@@ -92,18 +63,15 @@ go build -buildmode=plugin -o my_plugin.so my_plugin.go
 - Respect `Cache-Control`, `Expires`, `ETag` headers
 - Generate keys from URL + query + Vary headers
 - Cookie denylist prevents caching certain requests
+- Responses exceeding `max_response_size_mb` are not cached
+
+### Response Size Handling
+- Responses over `max_response_size_mb` are streamed through unchanged
+- No plugin processing or caching for oversized responses
+- Full response content is preserved and returned to client
+- Memory protection prevents excessive buffer allocation
 
 ### Configuration Hot-Reload
 - SIGHUP triggers config reload
 - New plugins are loaded, old ones remain until replaced
 - Invalid configs are rejected, keeping current configuration
-
-## Error Handling
-- **Fail gracefully**: Plugin errors don't crash the proxy
-- **Validate early**: Catch configuration errors at startup
-- **Use structured logging**: `slog` with context throughout
-
-## Dependencies
-- `golang.org/x/net/html`: HTML parsing
-- `github.com/beevik/etree`: XML processing
-- `github.com/redis/go-redis/v9`: Redis client
