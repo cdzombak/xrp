@@ -403,6 +403,7 @@ jobs:
       - name: Download all binary artifacts
         uses: actions/download-artifact@v5
         with:
+          pattern: "xrp-*"
           path: artifacts/
 
       - name: Prepare release artifacts
