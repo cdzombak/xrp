@@ -300,8 +300,8 @@ jobs:
         if: matrix.deb
         run: |
           fpm -t deb \
-            -v ${{ needs.build-builder.outputs.version }} \
-            -p ./dist/xrp-${{ needs.build-builder.outputs.version }}-${{ matrix.deb }}.deb \
+            -v ${{ needs.meta.outputs.version }} \
+            -p ./dist/xrp-${{ needs.meta.outputs.version }}-${{ matrix.deb }}.deb \
             -a ${{ matrix.deb }} \
             -n xrp \
             -s dir \
@@ -455,16 +455,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download binaries & packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
-          name: ${{ needs.meta.outputs.bin_name }} Binary Artifacts
           path: out
       - name: List artifacts
         run: ls -R
         working-directory: out
 
       - name: Login to Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v3
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
@@ -478,11 +477,11 @@ jobs:
             curl -u "${{ secrets.APTLY_CRED }}" \
               -fsS -X POST \
               -F file=@"${DEB}" \
-              "${{ secrets.APTLY_API }}/files/${{ needs.meta.outputs.bin_name }}-${{ needs.meta.outputs.version }}"
+              "${{ secrets.APTLY_API }}/files/xrp-${{ needs.meta.outputs.version }}"
           done
           curl -u "${{ secrets.APTLY_CRED }}" \
             -fsS -X POST \
-            "${{ secrets.APTLY_API }}/repos/${{ needs.meta.outputs.aptly_repo_name }}/file/${{ needs.meta.outputs.bin_name }}-${{ needs.meta.outputs.version }}?forceReplace=1"
+            "${{ secrets.APTLY_API }}/repos/${{ needs.meta.outputs.aptly_repo_name }}/file/xrp-${{ needs.meta.outputs.version }}?forceReplace=1"
 
       - name: Update Published Aptly Repo
         run: |
