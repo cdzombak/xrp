@@ -344,11 +344,11 @@ jobs:
       - name: Determine tags
         id: tags
         run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VERSION=${GITHUB_REF#refs/tags/}
-            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_OUTPUT
+          if [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/}"
+            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${VERSION},${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main" >> $GITHUB_OUTPUT
+            echo "tags=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:main" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build and push XRP images
@@ -392,7 +392,7 @@ jobs:
           mkdir release
           
           # Copy binaries and Debian packages
-          for dir in artifacts/xrp-*; do
+          for dir in ./artifacts/xrp-*; do
             if [ -d "$dir" ]; then
               cp "$dir"/* release/
             fi
@@ -473,7 +473,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          for DEB in out/*.deb; do
+          for DEB in ./out/*.deb; do
             curl -u "${{ secrets.APTLY_CRED }}" \
               -fsS -X POST \
               -F file=@"${DEB}" \
