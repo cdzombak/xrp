@@ -394,7 +394,7 @@ jobs:
           # Copy binaries and Debian packages
           for dir in ./artifacts/xrp-*; do
             if [ -d "$dir" ]; then
-              cp "$dir/*" release/
+              cp "$dir/./*" release/
             fi
           done
           
