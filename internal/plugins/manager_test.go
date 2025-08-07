@@ -269,7 +269,9 @@ func TestValidatePluginSecurity(t *testing.T) {
 
 	// Change to temp directory to make relative paths work
 	originalDir, _ := os.Getwd()
-	defer os.Chdir(originalDir)
+	defer func(dir string) {
+		_ = os.Chdir(dir)
+	}(originalDir)
 	if err := os.Chdir(tempDir); err != nil {
 		t.Fatal(err)
 	}
@@ -288,8 +290,8 @@ func TestValidatePluginSecurity(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				file.Close()
-				
+				_ = file.Close()
+
 				// Set proper permissions (not world-writable)
 				if err := os.Chmod(path, 0644); err != nil {
 					t.Fatal(err)
@@ -306,8 +308,8 @@ func TestValidatePluginSecurity(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				file.Close()
-				
+				_ = file.Close()
+
 				// Set world-writable permissions
 				if err := os.Chmod(path, 0666); err != nil {
 					t.Fatal(err)
@@ -326,8 +328,8 @@ func TestValidatePluginSecurity(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				file.Close()
-				
+				_ = file.Close()
+
 				// Create symlink with absolute target path
 				symlinkPath := filepath.Join("plugins", "symlink_plugin.so")
 				absTargetPath, _ := filepath.Abs(targetPath)
@@ -356,9 +358,9 @@ func TestValidatePluginSecurity(t *testing.T) {
 				if err != nil {
 					t.Skip("cannot create temp file for test")
 				}
-				file.Close()
+				_ = file.Close()
 				t.Cleanup(func() {
-					os.Remove(path)
+					_ = os.Remove(path)
 				})
 				return path
 			},
@@ -370,9 +372,9 @@ func TestValidatePluginSecurity(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pluginPath := tt.setupFile()
-			
+
 			err := manager.validatePluginSecurity(pluginPath)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Error("expected error but got none")
@@ -409,8 +411,8 @@ func TestSimplifiedPluginLoading(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name: "invalid symbol type",
-			symbol: &MockFullPlugin{}, // Not a function
+			name:        "invalid symbol type",
+			symbol:      &MockFullPlugin{}, // Not a function
 			expectError: true,
 		},
 		{

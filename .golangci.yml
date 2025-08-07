@@ -1,0 +1,12 @@
+---
+version: "2"
+
+linters:
+  exclusions:
+    rules:
+      - linters:
+          - errcheck
+        text: "Error return value of `[\\w\\.]+\\.Close` is not checked"
+      - linters:
+          - staticcheck
+        text: "ST1005:"
