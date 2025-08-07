@@ -230,6 +230,59 @@ func TestValidateConfig(t *testing.T) {
 			expectError: true,
 			errorMsg:    "max_response_size_mb must be positive",
 		},
+		{
+			name: "negative health port",
+			config: &Config{
+				BackendURL: "http://localhost:8081",
+				Redis:      RedisConfig{Addr: "localhost:6379"},
+				HealthPort: -1,
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "health_port must be between 0 and 65535",
+		},
+		{
+			name: "health port too high",
+			config: &Config{
+				BackendURL: "http://localhost:8081",
+				Redis:      RedisConfig{Addr: "localhost:6379"},
+				HealthPort: 70000,
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: true,
+			errorMsg:    "health_port must be between 0 and 65535",
+		},
+		{
+			name: "valid health port zero (random)",
+			config: &Config{
+				BackendURL: "http://localhost:8081",
+				Redis:      RedisConfig{Addr: "localhost:6379"},
+				HealthPort: 0,
+				MimeTypes: []MimeTypeConfig{
+					{
+						MimeType: "text/html",
+						Plugins: []PluginConfig{
+							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
+						},
+					},
+				},
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -284,5 +337,9 @@ func TestSetDefaults(t *testing.T) {
 
 	if config.MaxResponseSizeMB != 10 {
 		t.Errorf("expected MaxResponseSizeMB to be 10, got %d", config.MaxResponseSizeMB)
+	}
+
+	if config.HealthPort != 8081 {
+		t.Errorf("expected HealthPort to be 8081, got %d", config.HealthPort)
 	}
 }

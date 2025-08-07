@@ -44,6 +44,12 @@ func TestHealthHandler_Ready(t *testing.T) {
 	if body != "ok" {
 		t.Errorf("expected body 'ok', got '%s'", body)
 	}
+
+	// Check Content-Type header
+	contentType := recorder.Header().Get("Content-Type")
+	if contentType != "text/plain; charset=utf-8" {
+		t.Errorf("expected Content-Type 'text/plain; charset=utf-8', got '%s'", contentType)
+	}
 }
 
 // TestHealthHandler_MethodNotAllowed tests non-GET requests

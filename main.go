@@ -66,13 +66,25 @@ func main() {
 	// Create health server before proxy to handle startup monitoring
 	healthServer := health.New(cfg.HealthPort)
 	
-	// Start health server in background
+	// Start health server in background with proper error handling
+	healthServerReady := make(chan error, 1)
 	go func() {
-		if err := healthServer.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Health server failed", "error", err)
-			os.Exit(1)
+		if err := healthServer.Start(); err != nil {
+			healthServerReady <- err
 		}
 	}()
+
+	// Give health server time to start or fail
+	select {
+	case err := <-healthServerReady:
+		if !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Health server failed to start", "error", err)
+			os.Exit(1)
+		}
+	case <-time.After(100 * time.Millisecond):
+		// Health server started successfully (no immediate error)
+		slog.Debug("Health server started successfully")
+	}
 
 	// Create proxy server (this loads and validates plugins)
 	proxyServer, err := proxy.New(cfg, version)

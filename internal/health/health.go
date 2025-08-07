@@ -74,6 +74,8 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
 	if atomic.LoadInt32(s.ready) == 1 {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("ok"))
