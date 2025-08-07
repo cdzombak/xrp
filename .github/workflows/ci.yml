@@ -235,7 +235,8 @@ jobs:
         with:
           context: .
           file: build/docker/Dockerfile.builder
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+#          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.BUILDER_IMAGE_NAME }}:${{ needs.meta.outputs.version }}
@@ -267,10 +268,10 @@ jobs:
           - platform: linux/arm64
             arch: arm64
             deb: arm64
-          - platform: linux/arm/v7
-            arch: arm
-            variant: v7
-            deb: armhf
+#          - platform: linux/arm/v7
+#            arch: arm
+#            variant: v7
+#            deb: armhf
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -370,7 +371,8 @@ jobs:
         with:
           context: .
           file: build/docker/Dockerfile.xrp
-          platforms: linux/amd64,linux/arm64,linux/arm/v7
+#          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          platforms: linux/amd64,linux/arm64
           target: runtime
           push: true
           tags: ${{ steps.tags.outputs.tags }}
