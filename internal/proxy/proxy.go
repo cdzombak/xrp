@@ -150,6 +150,45 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 		return nil
 	}
 
+	// Check if response is too large before processing
+	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
+	if resp.ContentLength > 0 && resp.ContentLength > maxSize {
+		slog.Info("Response exceeds size limit, streaming through unchanged", 
+			"content_length", resp.ContentLength, "max", maxSize)
+		return nil
+	}
+
+	// For responses without Content-Length, we need to peek at the size
+	if resp.ContentLength <= 0 {
+		peekReader := &io.LimitedReader{
+			R: resp.Body,
+			N: maxSize + 1,
+		}
+		
+		peekedData, err := io.ReadAll(peekReader)
+		if err != nil {
+			slog.Error("Failed to peek at response size", "error", err)
+			return err
+		}
+		
+		if int64(len(peekedData)) > maxSize {
+			slog.Info("Response exceeds size limit, streaming through unchanged", 
+				"size", len(peekedData), "max", maxSize)
+			// Create a new reader with the peeked data + remaining body
+			resp.Body = io.NopCloser(io.MultiReader(
+				bytes.NewReader(peekedData),
+				resp.Body,
+			))
+			return nil
+		}
+		
+		// Response is small enough, restore body with peeked data
+		resp.Body = io.NopCloser(io.MultiReader(
+			bytes.NewReader(peekedData),
+			resp.Body,
+		))
+	}
+
 	// Add cache MISS header for processed responses
 	resp.Header.Set("X-XRP-Cache", "MISS")
 
@@ -175,16 +214,8 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 }
 
 func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, error) {
-	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
-	
-	// Always use LimitedReader to prevent reading more than allowed
-	// This provides consistent behavior regardless of Content-Length header accuracy  
-	limitedReader := &io.LimitedReader{
-		R: resp.Body,
-		N: maxSize + 1, // +1 to detect if limit exceeded
-	}
-	
-	body, err := io.ReadAll(limitedReader)
+	// Read the full response body (size already checked in modifyResponse)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
@@ -193,16 +224,7 @@ func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, e
 		slog.Error("Failed to close response body", "error", err)
 	}
 
-	// Check if we hit the size limit
-	actualSize := int64(len(body))
-	if actualSize > maxSize {
-		slog.Info("Response exceeds size limit, skipping plugin processing", 
-			"size", actualSize, "max", maxSize, "content_length", resp.ContentLength)
-		// Return truncated body - proxy will pass it through unchanged
-		return body[:maxSize], nil
-	}
-
-	// Response is within size limits, proceed with plugin processing
+	// Proceed with plugin processing
 	pluginConfigs := p.config.GetPluginsForMimeType(mimeType)
 	if len(pluginConfigs) == 0 {
 		return body, nil

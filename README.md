@@ -21,7 +21,7 @@ Create a `config.json` file based on `deployment/config.example.json`. This file
 
 - `backend_url`: The upstream URL to proxy requests to
 - `cookie_denylist`: If a request has a cookie whose name is listed in the denylist, the response is not cached in Redis
-- `max_response_size_mb`: The maximum response size to process via plugins and cache. If a response exceeds this size, it is simply returned to the client without modification or caching.
+- `max_response_size_mb`: The maximum response size to process via plugins and cache. If a response exceeds this size, it is streamed through to the client unchanged without plugin processing or caching.
 - `mime_types`: A list of MIME type configuration objects. These specify the plugins that will run on responses with the specified MIME type.
 - `redis`: Redis cache backend configuration.
 
