@@ -7,7 +7,7 @@
 // - Plugin naming convention enforcement (must end with "Plugin")
 // - Plugin file validation (must be .so files)
 // - Cookie denylist for cache exclusion
-// - Request timeout and response size limits
+// - Response size limits
 //
 // Configuration files are validated on load and can be hot-reloaded via SIGHUP signal.
 // Invalid configurations are rejected while keeping the current configuration active.
@@ -33,7 +33,6 @@
 //	    }
 //	  ],
 //	  "cookie_denylist": ["session"],
-//	  "request_timeout": 30,
 //	  "max_response_size_mb": 10
 //	}
 package config
@@ -77,7 +76,6 @@ type Config struct {
 	Redis              RedisConfig      `json:"redis"`
 	MimeTypes          []MimeTypeConfig `json:"mime_types"`
 	CookieDenylist     []string         `json:"cookie_denylist"`
-	RequestTimeout     int              `json:"request_timeout"`
 	MaxResponseSizeMB  int              `json:"max_response_size_mb"`
 }
 
@@ -119,10 +117,7 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("redis.addr is required")
 	}
 
-	// Validate timeout values
-	if config.RequestTimeout < 0 {
-		return fmt.Errorf("request_timeout must be positive")
-	}
+	// Validate size limits
 	if config.MaxResponseSizeMB < 0 {
 		return fmt.Errorf("max_response_size_mb must be positive")
 	}
@@ -161,9 +156,6 @@ func validateConfig(config *Config) error {
 }
 
 func setDefaults(config *Config) {
-	if config.RequestTimeout == 0 {
-		config.RequestTimeout = 30
-	}
 	if config.MaxResponseSizeMB == 0 {
 		config.MaxResponseSizeMB = 10
 	}

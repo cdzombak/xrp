@@ -1,67 +1,61 @@
 # XRP - HTML/XML-aware Reverse Proxy
 
-An HTML/XML-aware reverse proxy that supports plugin-based content modification, Redis caching, and configuration hot-reloading.
-
-## Features
+An HTML/XML-aware reverse proxy that allows modifying responses via plugins.
 
 - **Plugin-based content modification** - Go plugins modify HTML/XML responses
-- **Redis caching** - HTTP-compliant caching with configurable MIME types  
-- **Configuration hot-reload** - Reload config via SIGHUP signal
-- **Multi-architecture support** - Docker builds for amd64, arm64, arm/v7
+- **Redis caching** - HTTP-compliant caching
 
-## Quick Start
+## Run: Quick Demo
 
-### Prerequisites
+```shell
+cd examples
+docker compose build && docker compose up
 
-- Go 1.24.5 or later
-- Redis server (for caching)
-
-### Building
-
-```bash
-go build .                    # Build main binary
-make example-plugins         # Build example plugins
+# In another terminal:
+curl localhost:8080
 ```
 
-### Configuration
+## Configuration
 
-Create a `config.json` file based on the example:
+Create a `config.json` file based on `deployment/config.example.json`. This file configures the proxy server, content modification plugins, Redis cache, and certain policies. It contains the following top-level keys:
 
-```json
-{
-  "backend_url": "http://localhost:8081",
-  "redis": {
-    "addr": "localhost:6379",
-    "password": "",
-    "db": 0
-  },
-  "mime_types": [
-    {
-      "mime_type": "text/html",
-      "plugins": [
-        {
-          "path": "./plugins/html_modifier.so",
-          "name": "HTMLModifierPlugin"
-        }
-      ]
-    }
-  ],
-  "cookie_denylist": ["session"],
-  "request_timeout": 30,
-  "max_response_size_mb": 10
-}
+- `backend_url`: The upstream URL to proxy requests to
+- `cookie_denylist`: If a request has a cookie whose name is listed in the denylist, the response is not cached in Redis
+- `max_response_size_mb`: The maximum response size to process via plugins and cache. If a response exceeds this size, it is simply returned to the client without modification or caching.
+- `mime_types`: A list of MIME type configuration objects. These specify the plugins that will run on responses with the specified MIME type.
+- `redis`: Redis cache backend configuration.
+
+## Installation & Running
+
+XRP is inserted between your web server and your application backend. So, instead of:
+
+```
+nginx  ->  app (e.g. Ghost)
 ```
 
-### Running
+You'll run:
 
-```bash
-# Docker setup (nginx + redis + xrp)
-cd examples/
-timeout 30 docker compose build && timeout 30 docker compose up
-
-# Or run directly  
-./xrp -config config.example.json
 ```
+nginx  ->  xrp ->  app
+```
+
+The exact details of how to implement this will vary depending on your setup.
+
+### Docker
+
+TK
+
+### Debian/Ubuntu via apt repository
+
+TK
+
+### Manual from release artifacts
+
+TK
+
+### From source
+
+TK
 
 ## Plugin Development
 
@@ -115,24 +109,10 @@ make build XRP_VERSION=v1.0.0
 - **Dependency Management**: [PLUGIN_DEPENDENCY_MANAGEMENT.md](doc/PLUGIN_DEPENDENCY_MANAGEMENT.md) - Docker-based builds with version enforcement
 - **Build System**: [BUILD.md](doc/BUILD.md) - XRP build system documentation
 
-## Testing
+## License
 
-```bash
-go test ./...                          # All tests
-go test ./internal/... -short          # Fast unit tests  
-timeout 30 docker compose build && timeout 30 docker compose up  # Integration test
-```
+TK
 
-## How it Works
+## Author
 
-```
-Client -> XRP -> Backend
-          |
-          v
-       Redis Cache
-          |
-          v  
-       Plugins
-```
-
-XRP intercepts responses, applies plugins to modify HTML/XML content, and caches results in Redis with HTTP compliance (respects `Cache-Control`, `ETag`, etc.).
+TK

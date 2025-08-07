@@ -29,6 +29,5 @@
     "session",
     "auth_token"
   ],
-  "request_timeout": 30,
   "max_response_size_mb": 10
 }

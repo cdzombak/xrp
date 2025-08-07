@@ -213,24 +213,6 @@ func TestValidateConfig(t *testing.T) {
 			errorMsg:    "plugin path './plugins/plugin.exe' must end with '.so'",
 		},
 		{
-			name: "negative request timeout",
-			config: &Config{
-				BackendURL:     "http://localhost:8081",
-				Redis:          RedisConfig{Addr: "localhost:6379"},
-				RequestTimeout: -1,
-				MimeTypes: []MimeTypeConfig{
-					{
-						MimeType: "text/html",
-						Plugins: []PluginConfig{
-							{Path: "./plugins/plugin.so", Name: "MyPlugin"},
-						},
-					},
-				},
-			},
-			expectError: true,
-			errorMsg:    "request_timeout must be positive",
-		},
-		{
 			name: "negative max response size",
 			config: &Config{
 				BackendURL:        "http://localhost:8081",
@@ -300,9 +282,6 @@ func TestSetDefaults(t *testing.T) {
 	config := &Config{}
 	setDefaults(config)
 
-	if config.RequestTimeout != 30 {
-		t.Errorf("expected RequestTimeout to be 30, got %d", config.RequestTimeout)
-	}
 	if config.MaxResponseSizeMB != 10 {
 		t.Errorf("expected MaxResponseSizeMB to be 10, got %d", config.MaxResponseSizeMB)
 	}

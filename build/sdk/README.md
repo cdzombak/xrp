@@ -68,11 +68,6 @@ func (p *MyPlugin) ProcessXMLTree(ctx context.Context, url *url.URL, doc *etree.
 var MyPluginInstance = MyPlugin{}
 ```
 
-**Critical Notes:**
-- Export struct **values**, not pointers (use `var MyPluginInstance = MyPlugin{}`)
-- This avoids pointer-to-pointer issues in the Go plugin system
-- XRP loads plugins using reflection fallback for maximum compatibility
-
 ## Build System Features
 
 ### Smart Platform Detection
@@ -198,23 +193,6 @@ jobs:
             make test XRP_VERSION=$version
           done
 ```
-
-## Architecture Benefits
-
-### 1. Perfect Dependency Matching
-- Plugin dependencies **exactly** match XRP binary dependencies
-- No runtime version conflicts or interface mismatches
-- Consistent behavior across development and production
-
-### 2. Multi-Platform Support
-- Single build command produces all architectures
-- Consistent CGO environment across platforms
-- Same dependency versions on all platforms
-
-### 3. Version Isolation
-- Different XRP versions use different builder images
-- No cross-contamination between plugin builds
-- Reproducible builds for any XRP version
 
 ## Best Practices
 
