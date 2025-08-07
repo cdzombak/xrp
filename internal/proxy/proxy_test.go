@@ -134,12 +134,12 @@ func TestVersionHeader(t *testing.T) {
 	proxy.serveCachedResponse(recorder, entry)
 
 	if recorder.Header().Get("X-XRP-Version") != "1.2.3" {
-		t.Errorf("expected X-XRP-Version header to be '1.2.3', got '%s'", 
+		t.Errorf("expected X-XRP-Version header to be '1.2.3', got '%s'",
 			recorder.Header().Get("X-XRP-Version"))
 	}
 
 	if recorder.Header().Get("X-XRP-Cache") != "HIT" {
-		t.Errorf("expected X-XRP-Cache header to be 'HIT', got '%s'", 
+		t.Errorf("expected X-XRP-Cache header to be 'HIT', got '%s'",
 			recorder.Header().Get("X-XRP-Cache"))
 	}
 }
@@ -152,7 +152,7 @@ func TestProxyIntegration_HTMLResponse(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(200)
-		w.Write([]byte(`<!DOCTYPE html>
+		_, _ = w.Write([]byte(`<!DOCTYPE html>
 <html>
 <head><title>Test Page</title></head>
 <body>
@@ -199,18 +199,18 @@ func TestProxyIntegration_HTMLResponse(t *testing.T) {
 
 	// Check headers
 	if recorder.Header().Get("X-XRP-Version") != "test-1.0.0" {
-		t.Errorf("expected X-XRP-Version header 'test-1.0.0', got '%s'", 
+		t.Errorf("expected X-XRP-Version header 'test-1.0.0', got '%s'",
 			recorder.Header().Get("X-XRP-Version"))
 	}
 
 	if recorder.Header().Get("X-XRP-Cache") != "MISS" {
-		t.Errorf("expected X-XRP-Cache header 'MISS', got '%s'", 
+		t.Errorf("expected X-XRP-Cache header 'MISS', got '%s'",
 			recorder.Header().Get("X-XRP-Cache"))
 	}
 
 	// Verify content type is preserved
 	if !strings.Contains(recorder.Header().Get("Content-Type"), "text/html") {
-		t.Errorf("expected Content-Type to contain 'text/html', got '%s'", 
+		t.Errorf("expected Content-Type to contain 'text/html', got '%s'",
 			recorder.Header().Get("Content-Type"))
 	}
 
@@ -227,7 +227,7 @@ func TestProxyIntegration_NonHTMLResponse(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(200)
-		w.Write([]byte(`{"message": "hello world"}`))
+		_, _ = w.Write([]byte(`{"message": "hello world"}`))
 	}))
 	defer backend.Close()
 
@@ -260,7 +260,7 @@ func TestProxyIntegration_NonHTMLResponse(t *testing.T) {
 
 	// Check that version header is still added
 	if recorder.Header().Get("X-XRP-Version") != "test-1.0.0" {
-		t.Errorf("expected X-XRP-Version header 'test-1.0.0', got '%s'", 
+		t.Errorf("expected X-XRP-Version header 'test-1.0.0', got '%s'",
 			recorder.Header().Get("X-XRP-Version"))
 	}
 
@@ -276,7 +276,7 @@ func TestProxyIntegration_ErrorResponse(t *testing.T) {
 	// Create mock backend server that returns errors
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		w.Write([]byte("Not Found"))
+		_, _ = w.Write([]byte("Not Found"))
 	}))
 	defer backend.Close()
 
@@ -314,7 +314,7 @@ func TestProxyIntegration_ErrorResponse(t *testing.T) {
 
 	// Version header should still be present
 	if recorder.Header().Get("X-XRP-Version") != "test-1.0.0" {
-		t.Errorf("expected X-XRP-Version header 'test-1.0.0', got '%s'", 
+		t.Errorf("expected X-XRP-Version header 'test-1.0.0', got '%s'",
 			recorder.Header().Get("X-XRP-Version"))
 	}
 }
@@ -322,7 +322,7 @@ func TestProxyIntegration_ErrorResponse(t *testing.T) {
 // TestProxyIntegration_CacheFlow tests the caching functionality
 func TestProxyIntegration_CacheFlow(t *testing.T) {
 	callCount := 0
-	
+
 	// Create mock backend server that counts calls
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		callCount++
@@ -366,7 +366,7 @@ func TestProxyIntegration_CacheFlow(t *testing.T) {
 	}
 
 	if recorder1.Header().Get("X-XRP-Cache") != "MISS" {
-		t.Errorf("expected first request to be cache MISS, got '%s'", 
+		t.Errorf("expected first request to be cache MISS, got '%s'",
 			recorder1.Header().Get("X-XRP-Cache"))
 	}
 
@@ -392,7 +392,7 @@ func TestProxyIntegration_SizeLimit(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(200)
-		
+
 		// Write content larger than our limit
 		largeContent := strings.Repeat("x", 2*1024*1024) // 2MB
 		w.Write([]byte(fmt.Sprintf("<html><body>%s</body></html>", largeContent)))
@@ -472,15 +472,15 @@ func TestProxyIntegration_WithoutRedis(t *testing.T) {
 	if err == nil {
 		// If we somehow succeeded, run the test
 		t.Log("Unexpected Redis connection success, running test anyway")
-		
+
 		req := httptest.NewRequest("GET", "/test", nil)
 		recorder := httptest.NewRecorder()
 		proxy.ServeHTTP(recorder, req)
-		
+
 		if recorder.Code != 200 {
 			t.Errorf("expected status 200, got %d", recorder.Code)
 		}
-		
+
 		if !strings.Contains(recorder.Body.String(), "<title>Test Page</title>") {
 			t.Error("expected HTML content not found in response")
 		}
@@ -489,7 +489,7 @@ func TestProxyIntegration_WithoutRedis(t *testing.T) {
 		if !strings.Contains(err.Error(), "cache client") {
 			t.Errorf("expected cache client error, got: %v", err)
 		}
-		
+
 		t.Log("Redis unavailable as expected - proxy creation correctly failed")
 	}
 }
@@ -528,7 +528,7 @@ func TestProxyIntegration_POST(t *testing.T) {
 		if !strings.Contains(err.Error(), "cache client") {
 			t.Errorf("expected cache client error, got: %v", err)
 		}
-		
+
 		// This validates that proxy correctly checks dependencies
 		t.Log("POST test validated proxy creation dependency checking")
 	} else {
@@ -554,37 +554,37 @@ func TestProcessResponse_SizeValidation(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		contentLength  int64
-		bodySize       int
-		expectError    bool
-		shouldProcess  bool
+		name          string
+		contentLength int64
+		bodySize      int
+		expectError   bool
+		shouldProcess bool
 	}{
 		{
 			name:          "small response within limit",
-			contentLength: 1024,      // 1KB
-			bodySize:      1024,      // 1KB
+			contentLength: 1024, // 1KB
+			bodySize:      1024, // 1KB
 			expectError:   false,
 			shouldProcess: true,
 		},
 		{
 			name:          "large response with accurate content-length",
 			contentLength: 2 * 1024 * 1024, // 2MB
-			bodySize:      2 * 1024 * 1024, // 2MB  
+			bodySize:      2 * 1024 * 1024, // 2MB
 			expectError:   false,
 			shouldProcess: false, // Should skip processing
 		},
 		{
 			name:          "response without content-length header",
-			contentLength: -1,                // No content-length
-			bodySize:      2 * 1024 * 1024,   // 2MB actual size
+			contentLength: -1,              // No content-length
+			bodySize:      2 * 1024 * 1024, // 2MB actual size
 			expectError:   false,
 			shouldProcess: false, // Should detect size and skip processing
 		},
 		{
 			name:          "response with incorrect content-length",
-			contentLength: 1024,              // Says 1KB
-			bodySize:      2 * 1024 * 1024,   // Actually 2MB
+			contentLength: 1024,            // Says 1KB
+			bodySize:      2 * 1024 * 1024, // Actually 2MB
 			expectError:   false,
 			shouldProcess: false, // Should detect actual size
 		},
@@ -611,7 +611,7 @@ func TestProcessResponse_SizeValidation(t *testing.T) {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
 				}
-				
+
 				// Verify result size - should be limited to max size for oversized responses
 				expectedSize := tt.bodySize
 				if tt.bodySize > int(cfg.MaxResponseSizeMB*1024*1024) {
