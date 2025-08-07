@@ -394,7 +394,7 @@ jobs:
           # Copy binaries and Debian packages
           for dir in ./artifacts/xrp-*; do
             if [ -d "$dir" ]; then
-              cp "$dir/./*" release/
+              cp "$dir/*" release/
             fi
           done
           
@@ -421,7 +421,7 @@ jobs:
           
           # Create checksums
           cd release
-          sha256sum * > checksums.txt
+          sha256sum ./* > checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
