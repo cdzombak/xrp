@@ -411,11 +411,7 @@ jobs:
           mkdir release
           
           # Copy binaries and Debian packages
-          for dir in ./artifacts/xrp-*; do
-            if [ -d "$dir" ]; then
-              cp "$dir/*" release/
-            fi
-          done
+          find ./artifacts -name "xrp-*" -type f -exec cp {} release/ \;
           
           # Create compatibility.json
           cat > release/compatibility.json << EOF
