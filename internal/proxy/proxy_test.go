@@ -329,7 +329,7 @@ func TestProxyIntegration_CacheFlow(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("Cache-Control", "max-age=3600") // Cacheable
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte(fmt.Sprintf("<html><body>Call #%d</body></html>", callCount)))
+		_, _ = fmt.Fprintf(w, "<html><body>Call #%d</body></html>", callCount)
 	}))
 	defer backend.Close()
 
@@ -395,7 +395,7 @@ func TestProxyIntegration_SizeLimit(t *testing.T) {
 
 		// Write content larger than our limit
 		largeContent := strings.Repeat("x", 2*1024*1024) // 2MB
-		_, _ = w.Write([]byte(fmt.Sprintf("<html><body>%s</body></html>", largeContent)))
+		_, _ = fmt.Fprintf(w, "<html><body>%s</body></html>", largeContent)
 	}))
 	defer backend.Close()
 
@@ -504,7 +504,7 @@ func TestProxyIntegration_POST(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "text/html")
 		w.WriteHeader(200)
-		w.Write([]byte(`<html><body>POST received</body></html>`))
+		_, _ = w.Write([]byte(`<html><body>POST received</body></html>`))
 	}))
 	defer backend.Close()
 
