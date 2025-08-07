@@ -293,13 +293,13 @@ jobs:
 
       - name: Rename binary
         run: |
-          mv dist/xrp dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
+          mv dist/xrp dist/xrp-${{ needs.meta.outputs.version }}-${{ matrix.arch }}${{ matrix.variant }}
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xrp-${{ matrix.arch }}${{ matrix.variant }}
-          path: dist/xrp-${{ matrix.arch }}${{ matrix.variant }}
+          name: xrp-${{ needs.meta.outputs.version }}-${{ matrix.arch }}${{ matrix.variant }}
+          path: dist/xrp-${{ needs.meta.outputs.version }}-${{ matrix.arch }}${{ matrix.variant }}
 
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
@@ -324,7 +324,7 @@ jobs:
             --maintainer "Chris Dzombak <chris@dzombak.com>" \
             --license MIT \
             --vendor "Chris Dzombak" \
-            ./dist/xrp-${{ matrix.arch }}${{ matrix.variant }}=/usr/bin/xrp
+            ./dist/xrp-${{ needs.meta.outputs.version }}-${{ matrix.arch }}${{ matrix.variant }}=/usr/bin/xrp
 
       - name: Upload Debian package artifact
         if: matrix.deb
