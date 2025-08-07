@@ -17,5 +17,6 @@
     }
   ],
   "cookie_denylist": ["session", "auth"],
-  "max_response_size_mb": 10
+  "max_response_size_mb": 10,
+  "health_port": 8081
 }

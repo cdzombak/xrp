@@ -33,7 +33,8 @@
 //	    }
 //	  ],
 //	  "cookie_denylist": ["session"],
-//	  "max_response_size_mb": 10
+//	  "max_response_size_mb": 10,
+//	  "health_port": 8081
 //	}
 package config
 
@@ -77,6 +78,7 @@ type Config struct {
 	MimeTypes          []MimeTypeConfig `json:"mime_types"`
 	CookieDenylist     []string         `json:"cookie_denylist"`
 	MaxResponseSizeMB  int              `json:"max_response_size_mb"`
+	HealthPort         int              `json:"health_port"`
 }
 
 func Load(filename string) (*Config, error) {
@@ -122,6 +124,11 @@ func validateConfig(config *Config) error {
 		return fmt.Errorf("max_response_size_mb must be positive")
 	}
 
+	// Validate health port
+	if config.HealthPort < 0 || config.HealthPort > 65535 {
+		return fmt.Errorf("health_port must be between 0 and 65535")
+	}
+
 	for i, mimeConfig := range config.MimeTypes {
 		if !slices.Contains(validHTMLXMLMimeTypes, mimeConfig.MimeType) {
 			return fmt.Errorf("mime_types[%d]: invalid MIME type '%s', must be one of: %s",
@@ -158,6 +165,9 @@ func validateConfig(config *Config) error {
 func setDefaults(config *Config) {
 	if config.MaxResponseSizeMB == 0 {
 		config.MaxResponseSizeMB = 10
+	}
+	if config.HealthPort == 0 {
+		config.HealthPort = 8081
 	}
 }
 

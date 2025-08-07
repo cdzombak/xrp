@@ -29,7 +29,8 @@ services:
     image: ghcr.io/cdzombak/xrp:1.0.0
     restart: unless-stopped
     ports:
-      - "80:8080" # HTTP traffic
+      - "80:8080"   # HTTP traffic
+      - "8081:8081" # Health check endpoint
     networks:
       - app-internal
     depends_on:
@@ -42,7 +43,7 @@ services:
       - ./plugins:/app/plugins:ro
     command: ["/usr/local/bin/xrp", "-config", "/app/config.json"]
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
       interval: 30s
       timeout: 10s
       retries: 3

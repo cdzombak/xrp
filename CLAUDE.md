@@ -6,6 +6,7 @@ XRP is an HTML/XML-aware reverse proxy built in Go that supports:
 - Plugin-based content modification for HTML/XML responses
 - Redis-based caching with HTTP compliance
 - Configuration hot-reloading via SIGHUP
+- Health check endpoint for monitoring and orchestration
 
 ## Architecture
 
@@ -15,6 +16,7 @@ xrp/
 ├── internal/                   # Private packages
 │   ├── config/                 # Configuration handling
 │   ├── cache/                  # Redis caching
+│   ├── health/                 # Health check endpoint
 │   ├── plugins/                # Plugin management
 │   └── proxy/                  # Core proxy logic
 ├── pkg/xrpplugin/              # Plugin interface (public)
@@ -75,3 +77,11 @@ This starts Nginx (backend), Redis (cache), and XRP (proxy) with example plugins
 - SIGHUP triggers config reload
 - New plugins are loaded, old ones remain until replaced
 - Invalid configs are rejected, keeping current configuration
+- Health endpoint returns 102 during reload, 200 when ready
+
+### Health Check Endpoint
+- Dedicated server on `health_port` (default: 8081)
+- Returns 102 Processing during startup and configuration reloads
+- Returns 200 OK with body "ok" when proxy is ready
+- Thread-safe state tracking using atomic operations
+- Used by container orchestrators and load balancers

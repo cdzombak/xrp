@@ -24,6 +24,22 @@ Create a `config.json` file based on `deployment/config.example.json`. This file
 - `max_response_size_mb`: The maximum response size to process via plugins and cache. If a response exceeds this size, it is streamed through to the client unchanged without plugin processing or caching.
 - `mime_types`: A list of MIME type configuration objects. These specify the plugins that will run on responses with the specified MIME type.
 - `redis`: Redis cache backend configuration.
+- `health_port`: Port for the health check endpoint server (default: 8081)
+
+## Health Check Endpoint
+
+XRP provides a dedicated health check endpoint on a separate port (default: 8081) that can be used by container orchestrators, load balancers, and monitoring systems to determine when the proxy is ready to handle traffic.
+
+- **GET `/health`** on the health port:
+  - Returns `102 Processing` with body `starting` during startup (while plugins are loading)
+  - Returns `200 OK` with body `ok` when fully ready to serve traffic
+  - Returns `102 Processing` during configuration reloads
+
+This endpoint is useful for:
+- Kubernetes readiness probes
+- Docker health checks
+- Load balancer health monitoring
+- Service mesh integration
 
 ## Installation & Running
 
