@@ -265,9 +265,11 @@ jobs:
           - platform: linux/amd64
             arch: amd64
             deb: amd64
+            variant: ""
           - platform: linux/arm64
             arch: arm64
             deb: arm64
+            variant: ""
 #          - platform: linux/arm/v7
 #            arch: arm
 #            variant: v7
