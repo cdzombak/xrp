@@ -329,7 +329,7 @@ func TestProxyIntegration_CacheFlow(t *testing.T) {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("Cache-Control", "max-age=3600") // Cacheable
 		w.WriteHeader(200)
-		w.Write([]byte(fmt.Sprintf("<html><body>Call #%d</body></html>", callCount)))
+		_, _ = w.Write([]byte(fmt.Sprintf("<html><body>Call #%d</body></html>", callCount)))
 	}))
 	defer backend.Close()
 
@@ -395,7 +395,7 @@ func TestProxyIntegration_SizeLimit(t *testing.T) {
 
 		// Write content larger than our limit
 		largeContent := strings.Repeat("x", 2*1024*1024) // 2MB
-		w.Write([]byte(fmt.Sprintf("<html><body>%s</body></html>", largeContent)))
+		_, _ = w.Write([]byte(fmt.Sprintf("<html><body>%s</body></html>", largeContent)))
 	}))
 	defer backend.Close()
 
@@ -444,7 +444,7 @@ func TestProxyIntegration_WithoutRedis(t *testing.T) {
 	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.WriteHeader(200)
-		w.Write([]byte(`<!DOCTYPE html>
+		_, _ = w.Write([]byte(`<!DOCTYPE html>
 <html>
 <head><title>Test Page</title></head>
 <body><p>Hello World</p></body>
