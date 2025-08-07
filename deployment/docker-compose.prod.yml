@@ -11,19 +11,11 @@
 # Important: Update the XRP image tag to match your desired version
 
 services:
-  # Redis cache - persistent data with authentication
   redis:
     image: redis:7-alpine
-    container_name: xrp-redis
     restart: unless-stopped
     networks:
-      - xrp-internal
-    command: >
-      redis-server 
-      --appendonly yes 
-      --appendfsync everysec
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      - app-internal
     volumes:
       - redis-data:/data
     healthcheck:
@@ -32,45 +24,22 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-    # Uncomment for external Redis access (not recommended for production)
-    # ports:
-    #   - "127.0.0.1:6379:6379"
 
-  # XRP reverse proxy
   xrp:
-    image: ghcr.io/cdzombak/xrp:latest  # Update to specific version tag
-    container_name: xrp-proxy
+    image: ghcr.io/cdzombak/xrp:1.0.0
     restart: unless-stopped
     ports:
-      - "80:8080"   # HTTP traffic
-      # - "443:8080"  # Uncomment for HTTPS (configure TLS termination)
+      - "80:8080" # HTTP traffic
     networks:
-      - xrp-internal
+      - app-internal
     depends_on:
       redis:
         condition: service_healthy
-    environment:
-      # Logging configuration
-      - LOG_LEVEL=info
-      
-      # Performance tuning
-      - GOMAXPROCS=0  # Use all available CPUs
-      - GOGC=100      # Default garbage collection target
-      
-      # Security headers (optional)
-      - SECURITY_HEADERS=true
     volumes:
       # Configuration file - REQUIRED
       - ./config/config.json:/app/config.json:ro
-      
       # Plugins directory - mount your .so plugin files here
       - ./plugins:/app/plugins:ro
-      
-      # Optional: TLS certificates (if handling HTTPS)
-      # - ./certs:/app/certs:ro
-      
-      # Optional: Custom static content
-      # - ./static:/app/static:ro
     command: ["/usr/local/bin/xrp", "-config", "/app/config.json"]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
@@ -78,23 +47,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    # Resource limits (adjust based on your needs)
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '1.0'
-        reservations:
-          memory: 256M
-          cpus: '0.5'
 
 networks:
-  xrp-internal:
+  app-internal:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.20.0.0/16
 
 volumes:
   redis-data:

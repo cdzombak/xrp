@@ -41,21 +41,53 @@ nginx  ->  xrp ->  app
 
 The exact details of how to implement this will vary depending on your setup.
 
+You'll need to write your custom plugins depending on your needs. See the [Plugin Development](#plugin-development) section below for more information. Build the plugin binaries for the exact XRP version your server is running. The resulting plugin `.so` binaries must be accessible to XRP and references in your configuration.
+
 ### Docker
 
-TK
+Docker images for `xrp` are available from GHCR. To ensure compatibility with your plugins, I recommend using the Docker image tagged with the exact XRP version your plugins were built for.
+
+See [the example Docker Compose file](deployment/docker-compose.prod.yml) for details.
 
 ### Debian/Ubuntu via apt repository
 
-TK
+[Install my Debian repository](https://www.dzombak.com/blog/2025/06/updated-instructions-for-installing-my-debian-package-repositories/) if you haven't already:
+
+```shell
+sudo mkdir -p /etc/apt/keyrings
+curl -fsSL https://dist.cdzombak.net/keys/dist-cdzombak-net.gpg -o /etc/apt/keyrings/dist-cdzombak-net.gpg
+sudo chmod 644 /etc/apt/keyrings/dist-cdzombak-net.gpg
+sudo mkdir -p /etc/apt/sources.list.d
+sudo curl -fsSL https://dist.cdzombak.net/cdzombak-oss.sources -o /etc/apt/sources.list.d/cdzombak-oss.sources
+sudo chmod 644 /etc/apt/sources.list.d/cdzombak-oss.sources
+sudo apt update
+```
+
+Then install `xrp` via `apt`:
+
+```shell
+sudo apt install xrp
+```
 
 ### Manual from release artifacts
 
-TK
+Pre-built binaries for Linux on amd64/arm64 are downloadable from each [GitHub Release](https://github.com/cdzombak/xrp/releases). Debian packages are available as well.
+
+Copy the appropriate binary for your architecture and run it using your tools of choice.
 
 ### From source
 
-TK
+To build binaries yourself, check out this repository and check out the Git tag for the xrp version you want to build. Then run:
+
+```shell
+make build/binaries
+```
+
+Copy the resulting binary for your architecture from `dist/` and run it using your tools of choice.
+
+### systemd
+
+If you've installed XRP binaries, whether from the apt repository, release artifacts, or from source, you can use [the provided systemd unit file](deployment/systemd/xrp.service) to run XRP as a service.
 
 ## Plugin Development
 
@@ -111,8 +143,10 @@ make build XRP_VERSION=v1.0.0
 
 ## License
 
-TK
+GNU GPL v3.0; see [LICENSE](LICENSE) in this repo.
 
 ## Author
 
-TK
+Chris Dzombak
+- [dzombak.com](https://www.dzombak.com)
+- [GitHub @cdzombak](https://github.com/cdzombak)

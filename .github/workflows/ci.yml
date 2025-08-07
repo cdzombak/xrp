@@ -246,7 +246,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP Plugin Builder Image
-            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.licenses=GPL-3.0
             org.opencontainers.image.version=${{ needs.meta.outputs.version }}
             xrp.version=${{ needs.meta.outputs.version }}
             go.version=1.24.5
@@ -325,7 +325,7 @@ jobs:
             --description "HTML/XML-aware reverse proxy" \
             --url "https://github.com/cdzombak/xrp" \
             --maintainer "Chris Dzombak <chris@dzombak.com>" \
-            --license MIT \
+            --license GPL-3.0 \
             --vendor "Chris Dzombak" \
             ./dist/xrp-${{ needs.meta.outputs.version }}-${{ matrix.arch }}${{ matrix.variant }}=/usr/bin/xrp
 
@@ -383,7 +383,7 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.description=XRP HTML/XML-aware Reverse Proxy
-            org.opencontainers.image.licenses=MIT
+            org.opencontainers.image.licenses=GPL-3.0
             org.opencontainers.image.version=${{ needs.meta.outputs.version }}
 
   # Step 4: Create GitHub Release (semver tags only)
