@@ -166,3 +166,7 @@ GNU GPL v3.0; see [LICENSE](LICENSE) in this repo.
 Chris Dzombak
 - [dzombak.com](https://www.dzombak.com)
 - [GitHub @cdzombak](https://github.com/cdzombak)
+
+## Special Thanks
+
+Thanks to [Namespace](https://namespace.so) for providing GitHub Actions runners for this project.
