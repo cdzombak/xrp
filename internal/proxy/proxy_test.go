@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"xrp/internal/cache"
-	"xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/cache"
+	"github.com/cdzombak/xrp/internal/config"
 )
 
 // TestExtractMimeTypeSimple tests MIME type extraction without complex mocking
@@ -411,27 +411,27 @@ func TestModifyResponse_SizeLimit(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		contentLength  int64
-		body           string
+		name            string
+		contentLength   int64
+		body            string
 		expectProcessed bool
 	}{
 		{
 			name:            "small response with content-length",
 			contentLength:   1000,
-			body:           "<html><body>" + strings.Repeat("x", 1000) + "</body></html>",
+			body:            "<html><body>" + strings.Repeat("x", 1000) + "</body></html>",
 			expectProcessed: true,
 		},
 		{
 			name:            "large response with content-length",
 			contentLength:   2 * 1024 * 1024, // 2MB
-			body:           "<html><body>" + strings.Repeat("x", 2*1024*1024) + "</body></html>",
+			body:            "<html><body>" + strings.Repeat("x", 2*1024*1024) + "</body></html>",
 			expectProcessed: false,
 		},
 		{
 			name:            "large response without content-length",
 			contentLength:   -1, // No content-length
-			body:           "<html><body>" + strings.Repeat("x", 2*1024*1024) + "</body></html>",
+			body:            "<html><body>" + strings.Repeat("x", 2*1024*1024) + "</body></html>",
 			expectProcessed: false,
 		},
 	}

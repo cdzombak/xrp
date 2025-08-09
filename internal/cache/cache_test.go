@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/config"
 )
 
 func TestGetWithAuthorizationHeader(t *testing.T) {

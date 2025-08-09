@@ -12,7 +12,7 @@ import (
 
 	"github.com/beevik/etree"
 
-	xrpPlugin "xrp/pkg/xrpplugin"
+	xrpPlugin "github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
 // Mock plugin implementations for testing

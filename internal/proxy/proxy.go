@@ -4,7 +4,7 @@
 // HTML and XML responses using a plugin system. The proxy supports:
 //
 // - Intelligent Redis-based caching with HTTP compliance
-// - Plugin-based content modification for HTML/XML responses  
+// - Plugin-based content modification for HTML/XML responses
 // - Request/response size validation and security controls
 // - Version headers and cache status reporting
 // - Configuration hot-reloading and graceful error handling
@@ -20,7 +20,7 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	
+//
 //	http.ListenAndServe(":8080", proxy)
 //
 // The proxy automatically adds X-XRP-Version and X-XRP-Cache headers to
@@ -40,18 +40,18 @@ import (
 	"sync"
 	"time"
 
-	"xrp/internal/cache"
-	"xrp/internal/config"
-	"xrp/internal/plugins"
+	"github.com/cdzombak/xrp/internal/cache"
+	"github.com/cdzombak/xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/plugins"
 )
 
 type Proxy struct {
-	mu       sync.RWMutex
-	config   *config.Config
+	mu           sync.RWMutex
+	config       *config.Config
 	reverseProxy *httputil.ReverseProxy
-	cache    *cache.Cache
-	plugins  *plugins.Manager
-	version  string
+	cache        *cache.Cache
+	plugins      *plugins.Manager
+	version      string
 }
 
 func New(cfg *config.Config, version string) (*Proxy, error) {
@@ -75,13 +75,13 @@ func New(cfg *config.Config, version string) (*Proxy, error) {
 	}
 
 	rp := httputil.NewSingleHostReverseProxy(target)
-	
+
 	p := &Proxy{
-		config:   cfg,
+		config:       cfg,
 		reverseProxy: rp,
-		cache:    cacheClient,
-		plugins:  pluginManager,
-		version:  version,
+		cache:        cacheClient,
+		plugins:      pluginManager,
+		version:      version,
 	}
 
 	rp.ModifyResponse = p.modifyResponse
@@ -153,7 +153,7 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 	// Check if response is too large before processing
 	maxSize := int64(p.config.MaxResponseSizeMB * 1024 * 1024)
 	if resp.ContentLength > 0 && resp.ContentLength > maxSize {
-		slog.Info("Response exceeds size limit, streaming through unchanged", 
+		slog.Info("Response exceeds size limit, streaming through unchanged",
 			"content_length", resp.ContentLength, "max", maxSize)
 		return nil
 	}
@@ -164,15 +164,15 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 			R: resp.Body,
 			N: maxSize + 1,
 		}
-		
+
 		peekedData, err := io.ReadAll(peekReader)
 		if err != nil {
 			slog.Error("Failed to peek at response size", "error", err)
 			return err
 		}
-		
+
 		if int64(len(peekedData)) > maxSize {
-			slog.Info("Response exceeds size limit, streaming through unchanged", 
+			slog.Info("Response exceeds size limit, streaming through unchanged",
 				"size", len(peekedData), "max", maxSize)
 			// Create a new reader with the peeked data + remaining body
 			resp.Body = io.NopCloser(io.MultiReader(
@@ -181,7 +181,7 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 			))
 			return nil
 		}
-		
+
 		// Response is small enough, restore body with peeked data
 		resp.Body = io.NopCloser(io.MultiReader(
 			bytes.NewReader(peekedData),
@@ -194,18 +194,18 @@ func (p *Proxy) modifyResponse(resp *http.Response) error {
 
 	var body []byte
 	var err error
-	
+
 	if resp.Request.Method == http.MethodGet && p.shouldCache(resp) {
 		body, err = p.processAndCacheResponse(resp, mimeType)
 	} else {
 		body, err = p.processResponse(resp, mimeType)
 	}
-	
+
 	if err != nil {
 		slog.Error("Failed to process response", "error", err)
 		return err
 	}
-	
+
 	resp.Body = io.NopCloser(bytes.NewReader(body))
 	resp.ContentLength = int64(len(body))
 	resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
@@ -219,7 +219,7 @@ func (p *Proxy) processResponse(resp *http.Response, mimeType string) ([]byte, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
-	
+
 	if err := resp.Body.Close(); err != nil {
 		slog.Error("Failed to close response body", "error", err)
 	}
@@ -294,14 +294,14 @@ func (p *Proxy) serveCachedResponse(w http.ResponseWriter, entry *cache.Entry) {
 			w.Header().Add(key, value)
 		}
 	}
-	
+
 	// Update Content-Length to match the actual cached body length
 	w.Header().Set("Content-Length", strconv.Itoa(len(entry.Body)))
-	
+
 	// Add XRP headers for cached responses
 	w.Header().Set("X-XRP-Version", p.version)
 	w.Header().Set("X-XRP-Cache", "HIT")
-	
+
 	w.WriteHeader(entry.StatusCode)
 	if _, err := w.Write(entry.Body); err != nil {
 		slog.Error("Failed to write cached response body", "error", err)

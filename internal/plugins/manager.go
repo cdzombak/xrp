@@ -43,8 +43,8 @@ import (
 
 	"github.com/beevik/etree"
 
-	"xrp/internal/config"
-	xrpPlugin "xrp/pkg/xrpplugin"
+	"github.com/cdzombak/xrp/internal/config"
+	xrpPlugin "github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
 type LoadedPlugin struct {
@@ -142,14 +142,13 @@ func (m *Manager) loadPlugin(path, name, mimeType string) (*LoadedPlugin, error)
 	}
 
 	slog.Info("Successfully loaded plugin", "path", path, "name", name)
-	
+
 	return &LoadedPlugin{
 		plugin: pluginInstance,
 		path:   path,
 		name:   name,
 	}, nil
 }
-
 
 func (m *Manager) validatePlugin(p xrpPlugin.Plugin, mimeType string) error {
 	// Plugin validation passed - methods exist and have correct signatures
@@ -164,39 +163,39 @@ func (m *Manager) validatePluginSecurity(path string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Validate path is not a symlink to prevent directory traversal
 	if info.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("plugin file %s cannot be a symlink", path)
 	}
-	
+
 	// Now use Stat to check file permissions (following any resolved symlinks)
 	// Actually, we already rejected symlinks above, so this is the same as Lstat
 	// but being explicit about checking file permissions
-	
+
 	// Ensure file is not world-writable
 	if info.Mode().Perm()&0002 != 0 {
 		return fmt.Errorf("plugin file %s is world-writable", path)
 	}
-	
+
 	// Ensure path is absolute and within allowed directories
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	
+
 	// Define allowed directories (relative paths are converted to absolute)
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("cannot get current working directory: %w", err)
 	}
-	
+
 	allowedDirs := []string{
 		filepath.Join(cwd, "plugins"),
 		"./plugins",
 		"/opt/xrp/plugins",
 	}
-	
+
 	// Convert relative paths to absolute
 	var absAllowedDirs []string
 	for _, dir := range allowedDirs {
@@ -209,7 +208,7 @@ func (m *Manager) validatePluginSecurity(path string) error {
 			}
 		}
 	}
-	
+
 	allowed := false
 	for _, dir := range absAllowedDirs {
 		if strings.HasPrefix(absPath, dir) {
@@ -217,11 +216,11 @@ func (m *Manager) validatePluginSecurity(path string) error {
 			break
 		}
 	}
-	
+
 	if !allowed {
 		return fmt.Errorf("plugin path %s not in allowed directories", absPath)
 	}
-	
+
 	return nil
 }
 

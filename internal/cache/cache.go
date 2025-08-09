@@ -49,7 +49,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
-	"xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/config"
 )
 
 type Entry struct {

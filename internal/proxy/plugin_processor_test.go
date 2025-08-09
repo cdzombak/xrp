@@ -3,7 +3,7 @@ package proxy
 import (
 	"testing"
 
-	"xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/config"
 )
 
 // TestPluginProcessingCommon tests the common plugin processing logic
@@ -32,7 +32,7 @@ func TestPluginProcessingCommon(t *testing.T) {
 		errorContains string
 	}{
 		{
-			name: "empty plugin configs",
+			name:          "empty plugin configs",
 			pluginConfigs: []config.PluginConfig{},
 			expectError:   false,
 		},

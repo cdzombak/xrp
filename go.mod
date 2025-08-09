@@ -1,4 +1,4 @@
-module xrp
+module github.com/cdzombak/xrp
 
 go 1.24.5
 

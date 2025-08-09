@@ -14,8 +14,8 @@ import (
 
 	"github.com/beevik/etree"
 
-	"xrp/internal/config"
-	"xrp/internal/plugins"
+	"github.com/cdzombak/xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/plugins"
 )
 
 // ProcessorFunc defines a function that processes a document with a plugin
@@ -83,7 +83,7 @@ func renderHTML(document interface{}) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid document type for HTML rendering")
 	}
-	
+
 	var buf bytes.Buffer
 	if err := html.Render(&buf, node); err != nil {
 		return nil, fmt.Errorf("failed to render HTML: %w", err)
@@ -113,7 +113,7 @@ func renderXML(document interface{}) ([]byte, error) {
 	if !ok {
 		return nil, fmt.Errorf("invalid document type for XML rendering")
 	}
-	
+
 	output, err := doc.WriteToBytes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize XML: %w", err)

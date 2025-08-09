@@ -11,9 +11,9 @@ import (
 	"syscall"
 	"time"
 
-	"xrp/internal/config"
-	"xrp/internal/health"
-	"xrp/internal/proxy"
+	"github.com/cdzombak/xrp/internal/config"
+	"github.com/cdzombak/xrp/internal/health"
+	"github.com/cdzombak/xrp/internal/proxy"
 )
 
 var version string = "<dev>"
@@ -65,7 +65,7 @@ func main() {
 
 	// Create health server before proxy to handle startup monitoring
 	healthServer := health.New(cfg.HealthPort)
-	
+
 	// Start health server in background with proper error handling
 	healthServerReady := make(chan error, 1)
 	go func() {
@@ -119,7 +119,7 @@ func main() {
 			slog.Info("Reloading configuration")
 			// Mark health as not ready during reload
 			healthServer.MarkNotReady()
-			
+
 			newCfg, err := config.Load(configFile)
 			if err != nil {
 				slog.Error("Failed to reload configuration", "error", err)
@@ -131,14 +131,14 @@ func main() {
 				healthServer.MarkReady() // Restore ready state on error
 				continue
 			}
-			
+
 			// Mark ready again after successful reload
 			healthServer.MarkReady()
 			slog.Info("Configuration reloaded successfully")
 		case syscall.SIGINT, syscall.SIGTERM:
 			slog.Info("Shutting down server")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			
+
 			// Shutdown both servers
 			if err := server.Shutdown(ctx); err != nil {
 				slog.Error("Proxy server shutdown failed", "error", err)
@@ -146,7 +146,7 @@ func main() {
 			if err := healthServer.Stop(); err != nil {
 				slog.Error("Health server shutdown failed", "error", err)
 			}
-			
+
 			cancel()
 			return
 		}

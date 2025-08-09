@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -12,7 +13,7 @@ import (
 
 	"github.com/beevik/etree"
 
-	"xrp/pkg/xrpplugin"
+	"github.com/cdzombak/xrp/pkg/xrpplugin"
 )
 
 // XMLTransformer is an example plugin that modifies XML content
