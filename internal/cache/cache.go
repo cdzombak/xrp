@@ -6,6 +6,7 @@
 // - HTTP cache header compliance (Cache-Control, ETag, Expires)
 // - Intelligent cache key generation based on URL, query params, and Vary headers
 // - Cookie-based cache exclusion via configurable denylist
+// - Authorization header exclusion (requests with Authorization headers are never cached)
 // - TTL calculation from HTTP headers with fallback defaults
 // - JSON serialization of cache entries with metadata
 //
@@ -22,12 +23,12 @@
 //	if err != nil {
 //	    log.Fatal(err)
 //	}
-//	
+//
 //	// Check for cached response
 //	if entry := cache.Get(req, config); entry != nil {
 //	    return entry // Serve from cache
 //	}
-//	
+//
 //	// Store response in cache
 //	cache.Set(req, entry, config)
 //
@@ -83,10 +84,15 @@ func New(redisConfig config.RedisConfig) (*Cache, error) {
 }
 
 func (c *Cache) Get(req *http.Request, cfg *config.Config) *Entry {
+	// Never serve cached responses to requests with Authorization header
+	if req.Header.Get("Authorization") != "" {
+		return nil
+	}
+
 	// For cache retrieval, we don't have the response Vary header yet,
 	// so we generate a key without Vary consideration for lookup
 	key := c.generateKey(req, "")
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
@@ -137,11 +143,11 @@ func (c *Cache) Set(req *http.Request, entry *Entry, cfg *config.Config) error {
 	if cacheControl := entry.Headers.Get("Cache-Control"); cacheControl != "" {
 		entry.MaxAge = parseMaxAge(cacheControl)
 	}
-	
+
 	if expiresHeader := entry.Headers.Get("Expires"); expiresHeader != "" {
 		entry.Expires = parseExpires(expiresHeader)
 	}
-	
+
 	if etag := entry.Headers.Get("ETag"); etag != "" {
 		entry.ETag = etag
 	}
@@ -149,7 +155,7 @@ func (c *Cache) Set(req *http.Request, entry *Entry, cfg *config.Config) error {
 	// Use the Vary header from the response to generate the cache key
 	varyHeader := entry.Headers.Get("Vary")
 	key := c.generateKey(req, varyHeader)
-	
+
 	data, err := json.Marshal(entry)
 	if err != nil {
 		return fmt.Errorf("failed to marshal cache entry: %w", err)
@@ -168,6 +174,11 @@ func (c *Cache) IsCacheable(resp *http.Response) bool {
 	}
 
 	if resp.Request.Method != http.MethodGet {
+		return false
+	}
+
+	// Never cache responses to requests with Authorization header
+	if resp.Request.Header.Get("Authorization") != "" {
 		return false
 	}
 
@@ -262,7 +273,7 @@ func parseExpires(expiresHeader string) *time.Time {
 	if expiresHeader == "" {
 		return nil
 	}
-	
+
 	if t, err := http.ParseTime(expiresHeader); err == nil {
 		return &t
 	}

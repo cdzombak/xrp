@@ -10,6 +10,34 @@ import (
 	"xrp/internal/config"
 )
 
+func TestGetWithAuthorizationHeader(t *testing.T) {
+	cache := &Cache{}
+
+	// Test that requests with Authorization header return nil immediately
+	// without attempting Redis connection
+	req := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/test"},
+		Header: make(http.Header),
+	}
+	req.Header.Set("Authorization", "Bearer token123")
+
+	cfg := &config.Config{}
+	result := cache.Get(req, cfg)
+
+	if result != nil {
+		t.Errorf("expected nil result for request with Authorization header, but got %v", result)
+	}
+
+	// Test with Basic auth too
+	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
+	result = cache.Get(req, cfg)
+
+	if result != nil {
+		t.Errorf("expected nil result for request with Basic auth header, but got %v", result)
+	}
+}
+
 func TestGenerateKey(t *testing.T) {
 	cache := &Cache{}
 
@@ -41,7 +69,7 @@ func TestGenerateKey(t *testing.T) {
 	}
 
 	baseReq := &http.Request{
-		URL: &url.URL{Path: "/test", RawQuery: "param=value"},
+		URL:    &url.URL{Path: "/test", RawQuery: "param=value"},
 		Header: make(http.Header),
 	}
 	baseKey := cache.generateKey(baseReq, "")
@@ -49,12 +77,12 @@ func TestGenerateKey(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &http.Request{
-				URL: &url.URL{Path: tt.path, RawQuery: tt.query},
+				URL:    &url.URL{Path: tt.path, RawQuery: tt.query},
 				Header: make(http.Header),
 			}
 			// Pass the vary header as parameter instead of setting it on request
 			key := cache.generateKey(req, tt.vary)
-			
+
 			if tt.expected && key == baseKey {
 				t.Error("expected different keys but got same")
 			}
@@ -73,6 +101,7 @@ func TestIsCacheable(t *testing.T) {
 		statusCode int
 		method     string
 		headers    map[string]string
+		reqHeaders map[string]string
 		expected   bool
 	}{
 		{
@@ -80,6 +109,7 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 200,
 			method:     "GET",
 			headers:    map[string]string{},
+			reqHeaders: map[string]string{},
 			expected:   true,
 		},
 		{
@@ -87,6 +117,7 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 404,
 			method:     "GET",
 			headers:    map[string]string{},
+			reqHeaders: map[string]string{},
 			expected:   false,
 		},
 		{
@@ -94,6 +125,7 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 200,
 			method:     "POST",
 			headers:    map[string]string{},
+			reqHeaders: map[string]string{},
 			expected:   false,
 		},
 		{
@@ -101,6 +133,7 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 200,
 			method:     "GET",
 			headers:    map[string]string{"Cache-Control": "no-cache"},
+			reqHeaders: map[string]string{},
 			expected:   false,
 		},
 		{
@@ -108,6 +141,7 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 200,
 			method:     "GET",
 			headers:    map[string]string{"Cache-Control": "no-store"},
+			reqHeaders: map[string]string{},
 			expected:   false,
 		},
 		{
@@ -115,6 +149,7 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 200,
 			method:     "GET",
 			headers:    map[string]string{"Cache-Control": "private"},
+			reqHeaders: map[string]string{},
 			expected:   false,
 		},
 		{
@@ -122,18 +157,34 @@ func TestIsCacheable(t *testing.T) {
 			statusCode: 200,
 			method:     "GET",
 			headers:    map[string]string{"Set-Cookie": "session=123"},
+			reqHeaders: map[string]string{},
+			expected:   false,
+		},
+		{
+			name:       "request with authorization header",
+			statusCode: 200,
+			method:     "GET",
+			headers:    map[string]string{},
+			reqHeaders: map[string]string{"Authorization": "Bearer token123"},
 			expected:   false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			req := &http.Request{
+				Method: tt.method,
+				Header: make(http.Header),
+			}
+
+			for key, value := range tt.reqHeaders {
+				req.Header.Set(key, value)
+			}
+
 			resp := &http.Response{
 				StatusCode: tt.statusCode,
 				Header:     make(http.Header),
-				Request: &http.Request{
-					Method: tt.method,
-				},
+				Request:    req,
 			}
 
 			for key, value := range tt.headers {
@@ -245,7 +296,7 @@ func TestCalculateTTL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := cache.calculateTTL(tt.entry)
-			
+
 			// Allow for small time differences due to test execution time
 			diff := result - tt.expected
 			if diff < 0 {
@@ -394,5 +445,18 @@ func TestCacheIntegration(t *testing.T) {
 
 	if retrieved.StatusCode != entry.StatusCode {
 		t.Errorf("expected status %d, got %d", entry.StatusCode, retrieved.StatusCode)
+	}
+
+	// Test that requests with Authorization header don't get cached responses
+	reqWithAuth := &http.Request{
+		Method: "GET",
+		URL:    &url.URL{Path: "/test", RawQuery: "param=value"},
+		Header: make(http.Header),
+	}
+	reqWithAuth.Header.Set("Authorization", "Bearer token123")
+
+	retrievedWithAuth := cache.Get(reqWithAuth, cfg)
+	if retrievedWithAuth != nil {
+		t.Error("expected nil result for request with Authorization header, but got cached response")
 	}
 }

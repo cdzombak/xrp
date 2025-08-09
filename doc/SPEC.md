@@ -37,6 +37,7 @@
 - Cached responses are stored with a key that includes the URL path and query parameters.
 - Responses including a Set-Cookie header are not cached.
 - A cookie name denylist can be specified in the configuration JSON file. Responses to requests that include cookies matching the denylist are not cached.
+- Responses to requests containing an Authorization header are never cached.
 
 ### Response Headers
 
