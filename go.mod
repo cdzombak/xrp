@@ -3,7 +3,7 @@ module github.com/cdzombak/xrp
 go 1.24.5
 
 require (
-	github.com/beevik/etree v1.5.1
+	github.com/beevik/etree v1.6.0
 	github.com/redis/go-redis/v9 v9.12.0
 	golang.org/x/net v0.42.0
 )
